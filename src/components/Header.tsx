@@ -1,6 +1,10 @@
-import { createServerClient } from "@/lib/supabaseServer";
+"use client";
+
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabaseClient";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Button } from "@/components/ui/button"; // Shadcn Button
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,21 +12,42 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"; // Shadcn DropdownMenu
-import { Menu, LogOut } from "lucide-react"; // Icons for menu/logout
+} from "@/components/ui/dropdown-menu";
+import { Menu, LogOut } from "lucide-react";
+import type { User } from "@supabase/supabase-js";
 
-export default async function Header() {
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+export default function Header() {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const supabase = createClient();
+  const router = useRouter();
+
+  useEffect(() => {
+    // Get initial session
+    const getUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+      setLoading(false);
+    };
+    getUser();
+
+    // Listen for auth changes (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleLogout = async () => {
-    "use server";
-    const supabase = await createServerClient();
     await supabase.auth.signOut();
+    setUser(null);
+    router.push("/");
+    router.refresh();
   };
-
-  // Map user to session-like shape for template compatibility
-  const session = user ? { user } : null;
 
   return (
     <header className="bg-card dark:bg-gray-800 shadow-md">
@@ -34,18 +59,20 @@ export default async function Header() {
           <Link href="/directory" className="text-muted-foreground dark:text-gray-300 hover:text-primary">
             Directory
           </Link>
-          {session ? (
+          {!loading && user ? (
             <>
               <Link href="/dashboard" className="text-muted-foreground dark:text-gray-300 hover:text-primary">
                 Dashboard
               </Link>
-              <form action={handleLogout}>
-                <Button variant="ghost" className="text-muted-foreground dark:text-gray-300 hover:text-primary">
-                  <LogOut className="mr-2 h-4 w-4" /> Logout
-                </Button>
-              </form>
+              <Button
+                variant="ghost"
+                className="text-muted-foreground dark:text-gray-300 hover:text-primary"
+                onClick={handleLogout}
+              >
+                <LogOut className="mr-2 h-4 w-4" /> Logout
+              </Button>
             </>
-          ) : (
+          ) : !loading ? (
             <>
               <Link href="/auth/login" className="text-muted-foreground dark:text-gray-300 hover:text-primary">
                 Login
@@ -54,7 +81,7 @@ export default async function Header() {
                 <Button variant="default">Sign Up</Button>
               </Link>
             </>
-          )}
+          ) : null}
         </nav>
         <DropdownMenu>
           <DropdownMenuTrigger asChild className="md:hidden">
@@ -68,20 +95,16 @@ export default async function Header() {
             <DropdownMenuItem asChild>
               <Link href="/directory">Directory</Link>
             </DropdownMenuItem>
-            {session ? (
+            {!loading && user ? (
               <>
                 <DropdownMenuItem asChild>
                   <Link href="/dashboard">Dashboard</Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <form action={handleLogout} className="w-full">
-                    <button type="submit" className="flex items-center w-full text-left">
-                      <LogOut className="mr-2 h-4 w-4" /> Logout
-                    </button>
-                  </form>
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" /> Logout
                 </DropdownMenuItem>
               </>
-            ) : (
+            ) : !loading ? (
               <>
                 <DropdownMenuItem asChild>
                   <Link href="/auth/login">Login</Link>
@@ -90,7 +113,7 @@ export default async function Header() {
                   <Link href="/auth/signup">Sign Up</Link>
                 </DropdownMenuItem>
               </>
-            )}
+            ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
