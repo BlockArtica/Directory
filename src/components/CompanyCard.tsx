@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"; // Shadcn Card
-import { Badge } from "@/components/ui/badge"; // Shadcn Badge for services/certifications/etc.
-import { MapPin, Globe, Phone, Mail, Star, Calendar, Users, Shield, Clock, CreditCard, Map, Book } from "lucide-react"; // Icons for all fields
-import { getDistance } from "geolib"; // For distance calc if userLocation provided
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { MapPin, Globe, Phone, Mail, Star, Calendar, Users, Shield, Clock, CreditCard, Map, Book } from "lucide-react";
+import { getDistance } from "geolib";
+import FavouriteButton from "@/components/FavouriteButton";
 
 interface CompanyCardProps {
   company: {
@@ -38,7 +39,10 @@ export default function CompanyCard({ company, userLocation }: CompanyCardProps)
   return (
     <Card className="flex flex-col h-full overflow-hidden rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 bg-card dark:bg-gray-800 border border-border dark:border-gray-700">
       <CardHeader className="space-y-1">
-        <CardTitle className="text-xl font-bold text-foreground dark:text-white">{company.name}</CardTitle>
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-xl font-bold text-foreground dark:text-white">{company.name}</CardTitle>
+          <FavouriteButton companyId={company.id} />
+        </div>
         <CardDescription className="text-muted-foreground dark:text-gray-300 line-clamp-2">
           {company.description || "No description available."}
         </CardDescription>
