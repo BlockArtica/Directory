@@ -6,13 +6,12 @@ import { createClient } from "@/lib/supabaseClient"; // Assumes lib/supabaseClie
 import { Button } from "@/components/ui/button"; // Shadcn Button
 import { Input } from "@/components/ui/input"; // Shadcn Input
 import { Label } from "@/components/ui/label"; // Shadcn Label
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Shadcn Select
 import { Textarea } from "@/components/ui/textarea"; // Shadcn Textarea
 import { useToast } from "@/hooks/use-toast"; // Shadcn Toast hook
-import { Loader2, Upload } from "lucide-react"; // Icons for loading/upload
-import { z } from "zod"; // For validation
-import { GoogleMap, LoadScript, Autocomplete } from "@react-google-maps/api"; // For location autocomplete
-import { getDistance } from "geolib"; // For potential distance calcs (future)
+import { Loader2, Upload } from "lucide-react";
+import { z } from "zod";
+import { LoadScript, Autocomplete } from "@react-google-maps/api";
+import OnboardingProgress from "@/components/OnboardingProgress";
 
 // Zod schema for validation (required fields per DB)
 const profileSchema = z.object({
@@ -94,10 +93,6 @@ export default function ProfilePage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSelectChange = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -185,8 +180,19 @@ export default function ProfilePage() {
       if (error) throw error;
 
       toast({ title: "Success", description: "Profile updated! Awaiting admin approval." });
-      // Future: Trigger edge function for admin notification
-      router.push("/dashboard");
+
+      // Check if user is on basic tier — prompt to choose a plan
+      const { data: company } = await supabase
+        .from("companies")
+        .select("subscription_tier")
+        .eq("user_id", session.user.id)
+        .single();
+
+      if (company?.subscription_tier === "basic") {
+        router.push("/dashboard/subscription");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (error: unknown) {
       if (error instanceof z.ZodError) {
         const fieldErrors = error.errors.reduce((acc, err) => {
@@ -213,6 +219,7 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-8">
+      <OnboardingProgress />
       <h1 className="text-3xl font-bold text-foreground dark:text-white">Company Profile Onboarding</h1>
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Basic Info */}
@@ -300,10 +307,12 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <Button type="submit" className="md:col-span-2" disabled={submitting}>
-          {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          {submitting ? "Submitting..." : "Submit Profile"}
-        </Button>
+        <div className="md:col-span-2 flex gap-4">
+          <Button type="submit" className="flex-1" disabled={submitting}>
+            {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            {submitting ? "Saving..." : "Save & Continue"}
+          </Button>
+        </div>
       </form>
     </div>
   );

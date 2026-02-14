@@ -1,12 +1,13 @@
-"use client"; // Client-side for Stripe interactions
+"use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabaseClient"; // Assumes lib/supabaseClient.ts exists
-import { Button } from "@/components/ui/button"; // Shadcn Button
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"; // Shadcn Card
-import { useToast } from "@/hooks/use-toast"; // Shadcn Toast hook
-import { Loader2, CheckCircle } from "lucide-react"; // Icons for loading/success
-// Stripe checkout is handled server-side via /api/create-checkout-session
+import { createClient } from "@/lib/supabaseClient";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, CheckCircle } from "lucide-react";
+import OnboardingProgress from "@/components/OnboardingProgress";
+import Link from "next/link";
 
 // Tier definitions (align with DB check constraint)
 const tiers = [
@@ -108,6 +109,7 @@ export default function SubscriptionPage() {
 
   return (
     <div className="space-y-8">
+      <OnboardingProgress />
       <h1 className="text-3xl font-bold text-foreground dark:text-white">Manage Subscription</h1>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {tiers.map((tier) => (
@@ -146,9 +148,18 @@ export default function SubscriptionPage() {
           </Card>
         ))}
       </div>
-      <p className="text-center text-sm text-muted-foreground dark:text-gray-400">
-        Subscriptions powered by Stripe. Manage billing in your Stripe portal after upgrade.
-      </p>
+      <div className="text-center space-y-2">
+        <p className="text-sm text-muted-foreground dark:text-gray-400">
+          Subscriptions powered by Stripe. Manage billing in your Stripe portal after upgrade.
+        </p>
+        {currentTier === "basic" && (
+          <Button variant="ghost" asChild>
+            <Link href="/dashboard" className="text-muted-foreground dark:text-gray-400">
+              Continue with Free Plan
+            </Link>
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
