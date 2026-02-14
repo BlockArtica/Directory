@@ -1,10 +1,10 @@
 "use client"; // Client-side for AI interactions
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabaseClient";
 import OpenAI from "openai";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
@@ -68,12 +68,28 @@ function fallbackParse(query: string): { service?: string; region?: string } {
   return { service: matchedService, region: matchedRegion };
 }
 
+const PLACEHOLDER_EXAMPLES = [
+  "My hot water system broke down...",
+  "Need a deck built in my backyard...",
+  "Looking for a licensed electrician...",
+  "Roof tiles damaged after the storm...",
+  "Garden needs a complete makeover...",
+];
+
 export default function ChatBox() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const router = useRouter();
   const { toast } = useToast();
   const supabase = createClient();
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPlaceholderIndex((prev) => (prev + 1) % PLACEHOLDER_EXAMPLES.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,16 +143,16 @@ Only return valid JSON. If you can't determine a field, omit it.`,
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex w-full max-w-md items-center space-x-2">
-      <Input
-        type="text"
-        placeholder={openai ? "Ask AI: e.g., My hot water is broken in Manly" : "Search: e.g., plumber Dee Why"}
+    <form onSubmit={handleSubmit} className="flex w-full max-w-xl items-end space-x-2">
+      <Textarea
+        placeholder={PLACEHOLDER_EXAMPLES[placeholderIndex]}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        className="flex-grow bg-card dark:bg-gray-800"
+        rows={3}
+        className="flex-grow bg-card dark:bg-gray-800 resize-none"
         disabled={loading}
       />
-      <Button type="submit" disabled={loading}>
+      <Button type="submit" disabled={loading} className="h-auto py-3">
         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : openai ? "Ask AI" : "Search"}
       </Button>
     </form>
