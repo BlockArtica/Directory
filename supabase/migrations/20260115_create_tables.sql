@@ -80,7 +80,16 @@ CREATE INDEX idx_companies_services ON companies USING GIN (services);  -- Array
 -- RLS Policies for Companies
 ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Enable read for owners" ON companies FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "Enable public read for verified companies" ON companies FOR SELECT USING (verified = true);
 CREATE POLICY "Enable update for owners" ON companies FOR UPDATE USING (user_id = auth.uid());
+
+-- RLS Policies for Ads
+ALTER TABLE ads ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Enable public read for ads" ON ads FOR SELECT USING (active = true);
+
+-- RLS Policies for Leads
+ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Enable public insert for leads" ON leads FOR INSERT WITH CHECK (true);
 
 -- RLS Policies for Jobs (Owners post/update their own, public read)
 ALTER TABLE jobs ENABLE ROW LEVEL SECURITY;

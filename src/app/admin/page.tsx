@@ -9,8 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"; // Shadcn Table
-import { useToast } from "@/components/ui/use-toast"; // Shadcn Toast hook (client-side)
-import { Loader2, Check, X } from "lucide-react"; // Icons for loading/approve/reject
+import { Check, X } from "lucide-react"; // Icons for approve/reject
 import { Metadata } from "next";
 
 // Revalidate on load for fresh data
@@ -40,7 +39,7 @@ export default async function AdminPage() {
     return <div className="text-destructive">Error loading queue: {error.message}</div>;
   }
 
-  const handleApprove = async (companyId: string) => {
+  async function handleApprove(companyId: string) {
     "use server";
     const supabase = createServerClient();
     const { error } = await supabase
@@ -49,10 +48,9 @@ export default async function AdminPage() {
       .eq("id", companyId);
 
     if (error) throw error;
-    // Future: Trigger notification to user via Resend
-  };
+  }
 
-  const handleReject = async (companyId: string) => {
+  async function handleReject(companyId: string) {
     "use server";
     const supabase = createServerClient();
     const { error } = await supabase
@@ -61,8 +59,7 @@ export default async function AdminPage() {
       .eq("id", companyId);
 
     if (error) throw error;
-    // Future: Trigger rejection email
-  };
+  }
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8 bg-background dark:bg-gray-900">
@@ -89,12 +86,12 @@ export default async function AdminPage() {
                   <TableCell className="text-foreground dark:text-white">{company.location.address}</TableCell>
                   <TableCell className="text-foreground dark:text-white">{company.services.join(", ")}</TableCell>
                   <TableCell className="flex space-x-2">
-                    <form action={() => handleApprove(company.id)}>
+                    <form action={handleApprove.bind(null, company.id)}>
                       <Button variant="default" size="sm">
                         <Check className="mr-1 h-4 w-4" /> Approve
                       </Button>
                     </form>
-                    <form action={() => handleReject(company.id)}>
+                    <form action={handleReject.bind(null, company.id)}>
                       <Button variant="destructive" size="sm">
                         <X className="mr-1 h-4 w-4" /> Reject
                       </Button>

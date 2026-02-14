@@ -3,13 +3,6 @@
 @tailwind utilities;
 
 /* Global Resets for Sleek/Business Aesthetic */
-:root { /* Light mode fallback */
-}
-
-.dark {
-  --background: #1a1a1a; /* Moody neutral dark bg */
-  --foreground: #ffffff;
-}
 
 html {
   scroll-behavior: smooth; /* Smooth scrolling for mobile/desktop */

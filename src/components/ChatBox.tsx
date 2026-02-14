@@ -46,9 +46,9 @@ export default function ChatBox() {
       const validated = parsedQuerySchema.parse(parsed);
 
       // Get user location if available (for leads)
-      let userLocation = null;
+      let userLocation: { lat: number; long: number } | null = null;
       if (navigator.geolocation) {
-        userLocation = await new Promise((resolve) => {
+        userLocation = await new Promise<{ lat: number; long: number } | null>((resolve) => {
           navigator.geolocation.getCurrentPosition(
             (pos) => resolve({ lat: pos.coords.latitude, long: pos.coords.longitude }),
             () => resolve(null)
@@ -69,7 +69,7 @@ export default function ChatBox() {
       router.push(`/directory?${searchParams.toString()}`);
 
       toast({ title: "Success", description: "Query processed—redirecting to results." });
-    } catch (error: any) {
+    } catch {
       toast({ variant: "destructive", title: "Error", description: "Failed to process query. Try again." });
     } finally {
       setLoading(false);

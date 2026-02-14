@@ -65,7 +65,7 @@ export default function SignupPage() {
       if (signInError) throw signInError;
 
       // Listener will handle the redirect on SIGNED_IN event
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof z.ZodError) {
         const fieldErrors = error.errors.reduce((acc, err) => {
           acc[err.path[0] as keyof typeof errors] = err.message;
@@ -73,8 +73,9 @@ export default function SignupPage() {
         }, {} as typeof errors);
         setErrors(fieldErrors);
       } else {
-        setErrors({ general: error.message || "Signup failed. Please try again." });
-        toast({ variant: "destructive", title: "Error", description: error.message || "Signup failed." });
+        const message = error instanceof Error ? error.message : "Signup failed. Please try again.";
+        setErrors({ general: message });
+        toast({ variant: "destructive", title: "Error", description: message });
       }
     } finally {
       setLoading(false);
@@ -94,8 +95,9 @@ export default function SignupPage() {
       if (error) throw error;
 
       // Listener above will handle the redirect after OAuth callback
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: error.message || "Google signup failed." });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Google signup failed.";
+      toast({ variant: "destructive", title: "Error", description: message });
     } finally {
       setLoading(false);
     }

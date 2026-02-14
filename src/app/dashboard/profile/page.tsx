@@ -130,8 +130,9 @@ export default function ProfilePage() {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFormData((prev) => ({ ...prev, licenses: Array.from(e.target.files) }));
+    const files = e.target.files;
+    if (files) {
+      setFormData((prev) => ({ ...prev, licenses: Array.from(files) }));
     }
   };
 
@@ -186,7 +187,7 @@ export default function ProfilePage() {
       toast({ title: "Success", description: "Profile updated! Awaiting admin approval." });
       // Future: Trigger edge function for admin notification
       router.push("/dashboard");
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof z.ZodError) {
         const fieldErrors = error.errors.reduce((acc, err) => {
           acc[err.path.join(".")] = err.message;
@@ -194,7 +195,8 @@ export default function ProfilePage() {
         }, {} as Record<string, string>);
         setErrors(fieldErrors);
       } else {
-        toast({ variant: "destructive", title: "Error", description: error.message || "Update failed." });
+        const message = error instanceof Error ? error.message : "Update failed.";
+        toast({ variant: "destructive", title: "Error", description: message });
       }
     } finally {
       setSubmitting(false);

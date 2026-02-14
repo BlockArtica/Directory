@@ -5,11 +5,36 @@ import { createClient } from "@/lib/supabaseClient"; // Assumes lib/supabaseClie
 import { Input } from "@/components/ui/input"; // Shadcn Input
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Shadcn Select
 import { Button } from "@/components/ui/button"; // Shadcn Button
-import { useToast } from "@/components/ui/use-toast"; // Shadcn Toast hook
+import { useToast } from "@/hooks/use-toast"; // Shadcn Toast hook
 import { Loader2 } from "lucide-react"; // For loading spinner
 import { z } from "zod"; // For validation
 import CompanyCard from "@/components/CompanyCard"; // Assumes components/CompanyCard.tsx exists
 import { getDistance } from "geolib"; // For distance sorting
+
+interface Company {
+  id: string;
+  name: string;
+  abn: string;
+  licenses: string[];
+  social_links: Record<string, string>;
+  google_reviews_url?: string;
+  location: { address: string; lat: number; long: number; region: string };
+  services: string[];
+  description?: string;
+  website?: string;
+  phone?: string;
+  email?: string;
+  years_in_business?: number;
+  number_of_employees?: number;
+  certifications: string[];
+  insurance_details?: string;
+  operating_hours?: string;
+  payment_methods: string[];
+  areas_serviced: string[];
+  references: string[];
+  subscription_tier?: string;
+  [key: string]: unknown;
+}
 
 // Zod schema for search query
 const searchSchema = z.object({
@@ -23,8 +48,8 @@ const availableServices = ["Plumbing", "Electrical", "Carpentry", "Painting", "L
 const availableRegions = ["Northern Beaches, NSW", "Brisbane, QLD"]; // From regions table seed
 
 export default function DirectoryPage() {
-  const [companies, setCompanies] = useState<any[]>([]);
-  const [filteredCompanies, setFilteredCompanies] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
   const [service, setService] = useState<string>("");
   const [region, setRegion] = useState<string>("");
   const [userLocation, setUserLocation] = useState<{ lat: number; long: number } | null>(null);
@@ -76,8 +101,8 @@ export default function DirectoryPage() {
       // Sort by distance if userLocation available
       if (userLocation) {
         results = results.sort((a, b) => {
-          const distA = getDistance(userLocation, { lat: a.location.lat, long: a.location.long });
-          const distB = getDistance(userLocation, { lat: b.location.lat, long: b.location.long });
+          const distA = getDistance({ latitude: userLocation.lat, longitude: userLocation.long }, { latitude: a.location.lat, longitude: a.location.long });
+          const distB = getDistance({ latitude: userLocation.lat, longitude: userLocation.long }, { latitude: b.location.lat, longitude: b.location.long });
           return distA - distB;
         });
       }
@@ -93,7 +118,7 @@ export default function DirectoryPage() {
       }
 
       toast({ title: "Success", description: `${results.length} results found.` });
-    } catch (error: any) {
+    } catch {
       toast({ variant: "destructive", title: "Error", description: "Invalid search parameters." });
     } finally {
       setSearching(false);

@@ -4,12 +4,9 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabaseClient"; // Assumes lib/supabaseClient.ts exists
 import { Button } from "@/components/ui/button"; // Shadcn Button
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"; // Shadcn Card
-import { useToast } from "@/components/ui/use-toast"; // Shadcn Toast hook
+import { useToast } from "@/hooks/use-toast"; // Shadcn Toast hook
 import { Loader2, CheckCircle } from "lucide-react"; // Icons for loading/success
-import { loadStripe } from "@stripe/stripe-js"; // For client-side Stripe
-
-// Stripe publishable key from env
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
+// Stripe checkout is handled server-side via /api/create-checkout-session
 
 // Tier definitions (align with DB check constraint)
 const tiers = [
@@ -78,12 +75,9 @@ export default function SubscriptionPage() {
           body: JSON.stringify({ priceId, userId: session.user.id }),
         });
 
-        const { sessionId } = await response.json();
-        const stripe = await stripePromise;
-        if (!stripe) throw new Error("Stripe failed to load");
-
-        const { error } = await stripe.redirectToCheckout({ sessionId });
-        if (error) throw error;
+        const { url } = await response.json();
+        if (!url) throw new Error("Failed to create checkout session");
+        window.location.href = url;
       } else {
         // Free tier: Direct DB update
         const { error } = await supabase
@@ -96,8 +90,9 @@ export default function SubscriptionPage() {
         setCurrentTier(tierName.toLowerCase());
         toast({ title: "Success", description: "Subscription updated to Basic!" });
       }
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: error.message || "Subscription update failed." });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Subscription update failed.";
+      toast({ variant: "destructive", title: "Error", description: message });
     } finally {
       setSubmitting(false);
     }

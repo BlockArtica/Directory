@@ -23,8 +23,6 @@ export default function AuthCallback() {
       supabase.auth.setSession({
         access_token: accessToken,
         refresh_token: refreshToken,
-        token_type: "bearer",
-        expires_in: parseInt(expiresIn, 10),
       }).then(({ data: { session }, error }) => {
         if (error) {
           toast({ variant: "destructive", title: "Error", description: "Failed to set session." });

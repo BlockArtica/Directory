@@ -32,7 +32,7 @@ interface CompanyCardProps {
 
 export default function CompanyCard({ company, userLocation }: CompanyCardProps) {
   const distance = userLocation
-    ? Math.round(getDistance(userLocation, { lat: company.location.lat, long: company.location.long }) / 1000) // km
+    ? Math.round(getDistance({ latitude: userLocation.lat, longitude: userLocation.long }, { latitude: company.location.lat, longitude: company.location.long }) / 1000) // km
     : null;
 
   return (

@@ -53,7 +53,7 @@ export default function LoginPage() {
       if (error) throw error;
 
       // Listener above will handle the redirect on SIGNED_IN event
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof z.ZodError) {
         const fieldErrors = error.errors.reduce((acc, err) => {
           acc[err.path[0] as keyof typeof errors] = err.message;
@@ -61,8 +61,9 @@ export default function LoginPage() {
         }, {} as typeof errors);
         setErrors(fieldErrors);
       } else {
-        setErrors({ general: error.message || "Login failed. Please try again." });
-        toast({ variant: "destructive", title: "Error", description: error.message || "Login failed." });
+        const message = error instanceof Error ? error.message : "Login failed. Please try again.";
+        setErrors({ general: message });
+        toast({ variant: "destructive", title: "Error", description: message });
       }
     } finally {
       setLoading(false);
@@ -105,7 +106,7 @@ export default function LoginPage() {
           </Button>
         </form>
         <p className="text-center text-sm text-muted-foreground dark:text-gray-400">
-          Don't have an account? <Link href="/auth/signup" className="text-primary hover:underline">Sign up</Link>
+          Don&apos;t have an account? <Link href="/auth/signup" className="text-primary hover:underline">Sign up</Link>
         </p>
       </div>
     </div>
