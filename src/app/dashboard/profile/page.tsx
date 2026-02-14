@@ -13,6 +13,8 @@ import { z } from "zod";
 import { LoadScript, Autocomplete } from "@react-google-maps/api";
 import OnboardingProgress from "@/components/OnboardingProgress";
 
+const enableGoogleMaps = process.env.NEXT_PUBLIC_ENABLE_GOOGLE_MAPS === "true";
+
 // Zod schema for validation (required fields per DB)
 const profileSchema = z.object({
   name: z.string().min(1, { message: "Company name is required" }),
@@ -245,18 +247,34 @@ export default function ProfilePage() {
         {/* Location */}
         <div className="space-y-4 bg-card dark:bg-gray-800 p-6 rounded-lg shadow">
           <h2 className="text-xl font-semibold text-foreground dark:text-white">Location</h2>
-          <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""} libraries={["places"]}>
-            <Autocomplete onLoad={setAutocomplete} onPlaceChanged={handlePlaceChanged}>
-              <Input placeholder="Search address..." />
-            </Autocomplete>
-          </LoadScript>
+          {enableGoogleMaps ? (
+            <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""} libraries={["places"]}>
+              <Autocomplete onLoad={setAutocomplete} onPlaceChanged={handlePlaceChanged}>
+                <Input placeholder="Search address..." />
+              </Autocomplete>
+            </LoadScript>
+          ) : (
+            <div>
+              <Label htmlFor="address">Address</Label>
+              <Input
+                id="address"
+                value={formData.location.address}
+                onChange={(e) => setFormData((prev) => ({ ...prev, location: { ...prev.location, address: e.target.value } }))}
+                placeholder="Enter your business address"
+              />
+            </div>
+          )}
           {errors["location.address"] && <p className="text-sm text-destructive">{errors["location.address"]}</p>}
-          <Input
-            name="region"
-            value={formData.location.region}
-            onChange={(e) => setFormData((prev) => ({ ...prev, location: { ...prev.location, region: e.target.value } }))}
-            placeholder="Region (e.g., Northern Beaches, NSW)"
-          />
+          <div>
+            <Label htmlFor="region">Region</Label>
+            <Input
+              id="region"
+              name="region"
+              value={formData.location.region}
+              onChange={(e) => setFormData((prev) => ({ ...prev, location: { ...prev.location, region: e.target.value } }))}
+              placeholder="Region (e.g., Northern Beaches, NSW)"
+            />
+          </div>
           {errors["location.region"] && <p className="text-sm text-destructive">{errors["location.region"]}</p>}
         </div>
 
