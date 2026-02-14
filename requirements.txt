@@ -1,0 +1,36 @@
+# Runtime Dependencies (npm install --save)
+@radix-ui/react-avatar@1.1.1
+@radix-ui/react-checkbox@1.1.2
+@radix-ui/react-dialog@1.1.2
+@radix-ui/react-dropdown-menu@2.1.2
+@radix-ui/react-label@2.1.0
+@radix-ui/react-select@2.1.2
+@radix-ui/react-slot@1.1.0
+@radix-ui/react-toast@1.2.2
+@react-google-maps/api@2.19.3
+@supabase/supabase-js@2.45.4
+clsx@2.1.1
+geolib@3.3.4
+next@15.0.1
+openai@4.67.3
+react@19.0.0-rc-3f1436ec-20241016
+react-dom@19.0.0-rc-3f1436ec-20241016
+stripe@17.2.0
+tailwind-merge@2.5.4
+zod@3.23.8
+
+# Dev Dependencies (npm install --save-dev)
+@types/geolib@2.0.25
+@types/node@22.7.4
+@types/react@18.3.12
+@types/react-dom@18.3.1
+@typescript-eslint/eslint-plugin@8.9.0
+@typescript-eslint/parser@8.9.0
+autoprefixer@10.4.20
+eslint@9.12.0
+eslint-config-next@15.0.1
+eslint-plugin-react@7.37.2
+eslint-plugin-react-hooks@5.0.0
+postcss@8.4.47
+tailwindcss@3.4.14
+typescript@5.6.3
