@@ -24,6 +24,7 @@ export default function AdSpot({ spot, imageUrl, linkUrl }: AdSpotProps) {
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               className="object-cover"
               priority={spot === 1} // Priority for first spot
+              unoptimized
             />
           </div>
         </Link>
