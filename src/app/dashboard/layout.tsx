@@ -9,7 +9,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, Menu, User, CreditCard, Heart, Search, Eye, MessageSquare, Star } from "lucide-react";
+import {
+  LogOut, Menu, User, CreditCard, Heart, Search, Eye, MessageSquare, Star,
+  LayoutDashboard, Briefcase, Megaphone, Share2, BarChart3, Lock,
+} from "lucide-react";
 import Link from "next/link";
 import { Metadata } from "next";
 
@@ -35,6 +38,17 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const userType = profile?.user_type || "business";
 
+  // Fetch company tier for business nav gating
+  let companyTier = "basic";
+  if (userType === "business") {
+    const { data: company } = await supabase
+      .from("companies")
+      .select("subscription_tier")
+      .eq("user_id", user.id)
+      .single();
+    companyTier = company?.subscription_tier || "basic";
+  }
+
   const handleLogout = async () => {
     "use server";
     const supabase = await createServerClient();
@@ -42,17 +56,27 @@ export default async function DashboardLayout({ children }: { children: React.Re
     redirect("/auth/login");
   };
 
+  const tierLevel = { basic: 0, pro: 1, enterprise: 2 }[companyTier] ?? 0;
+
   const businessNav = [
-    { href: "/dashboard/profile", label: "Profile", icon: User },
-    { href: "/dashboard/subscription", label: "Subscription", icon: CreditCard },
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, locked: false },
+    { href: "/dashboard/preview", label: "Public Profile", icon: Eye, locked: false },
+    { href: "/dashboard/profile", label: "Edit Profile", icon: User, locked: false },
+    { href: "/dashboard/received-reviews", label: "Reviews", icon: Star, locked: false },
+    { href: "/dashboard/received-quotes", label: "Quotes", icon: MessageSquare, locked: false },
+    { href: "/dashboard/post-job", label: "Post Job", icon: Briefcase, locked: false },
+    { href: "/dashboard/ad-booking", label: "Ad Spots", icon: Megaphone, locked: tierLevel < 1 },
+    { href: "/dashboard/fb-post", label: "FB Post", icon: Share2, locked: tierLevel < 1 },
+    { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3, locked: tierLevel < 2 },
+    { href: "/dashboard/subscription", label: "Subscription", icon: CreditCard, locked: false },
   ];
 
   const seekerNav = [
-    { href: "/dashboard/favourites", label: "Favourites", icon: Heart },
-    { href: "/dashboard/saved-searches", label: "Saved Searches", icon: Search },
-    { href: "/dashboard/recent-views", label: "Recent Views", icon: Eye },
-    { href: "/dashboard/quotes", label: "Quotes", icon: MessageSquare },
-    { href: "/dashboard/reviews", label: "Reviews", icon: Star },
+    { href: "/dashboard/favourites", label: "Favourites", icon: Heart, locked: false },
+    { href: "/dashboard/saved-searches", label: "Saved Searches", icon: Search, locked: false },
+    { href: "/dashboard/recent-views", label: "Recent Views", icon: Eye, locked: false },
+    { href: "/dashboard/quotes", label: "Quotes", icon: MessageSquare, locked: false },
+    { href: "/dashboard/reviews", label: "Reviews", icon: Star, locked: false },
   ];
 
   const navItems = userType === "business" ? businessNav : seekerNav;
@@ -64,14 +88,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <Link href="/dashboard" className="text-xl font-bold text-foreground dark:text-white">
             Tradies Dashboard
           </Link>
-          <nav className="hidden md:flex space-x-4 items-center">
+          <nav className="hidden lg:flex space-x-3 items-center">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="text-muted-foreground dark:text-gray-300 hover:text-primary"
+                className="text-sm text-muted-foreground dark:text-gray-300 hover:text-primary flex items-center gap-1"
               >
                 {item.label}
+                {item.locked && <Lock className="h-3 w-3 text-muted-foreground/50" />}
               </Link>
             ))}
             <form action={handleLogout}>
@@ -81,7 +106,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             </form>
           </nav>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild className="md:hidden">
+            <DropdownMenuTrigger asChild className="lg:hidden">
               <Button variant="ghost" size="icon">
                 <Menu className="h-6 w-6 text-foreground dark:text-white" />
               </Button>
@@ -94,6 +119,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                   <Link href={item.href} className="flex items-center">
                     <item.icon className="mr-2 h-4 w-4" />
                     {item.label}
+                    {item.locked && <Lock className="ml-auto h-3 w-3 text-muted-foreground/50" />}
                   </Link>
                 </DropdownMenuItem>
               ))}
