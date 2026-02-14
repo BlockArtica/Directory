@@ -2,32 +2,35 @@
 -- Run this in Supabase SQL Editor to populate test data
 -- Creates 20 test users + companies, 3 ads, 5 jobs, and sample leads
 
+-- Step 0: Enable pgcrypto for password hashing
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Step 1: Disable the auto-stub trigger so we can insert companies directly
 DROP TRIGGER IF EXISTS trig_create_company_after_signup ON auth.users;
 
 -- Step 2: Insert 20 test users into auth.users (minimal required fields)
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at)
 VALUES
-  ('a0000001-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'mike@oceansideplumbing.com.au', crypt('testpass123', gen_salt('bf')), NOW(), NOW(), NOW()),
-  ('a0000001-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'dave@northernelectrical.com.au', crypt('testpass123', gen_salt('bf')), NOW(), NOW(), NOW()),
-  ('a0000001-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'sarah@shorelineroofing.com.au', crypt('testpass123', gen_salt('bf')), NOW(), NOW(), NOW()),
-  ('a0000001-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'tom@manlycarpentry.com.au', crypt('testpass123', gen_salt('bf')), NOW(), NOW(), NOW()),
-  ('a0000001-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'jen@beachsidepainting.com.au', crypt('testpass123', gen_salt('bf')), NOW(), NOW(), NOW()),
-  ('a0000001-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'chris@peninsulalandscaping.com.au', crypt('testpass123', gen_salt('bf')), NOW(), NOW(), NOW()),
-  ('a0000001-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'brad@brisbaneplumbingpro.com.au', crypt('testpass123', gen_salt('bf')), NOW(), NOW(), NOW()),
-  ('a0000001-0000-0000-0000-000000000008', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'lisa@qldelectricsolutions.com.au', crypt('testpass123', gen_salt('bf')), NOW(), NOW(), NOW()),
-  ('a0000001-0000-0000-0000-000000000009', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'matt@northshorebuilders.com.au', crypt('testpass123', gen_salt('bf')), NOW(), NOW(), NOW()),
-  ('a0000001-0000-0000-0000-000000000010', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'karen@freshcoatpainting.com.au', crypt('testpass123', gen_salt('bf')), NOW(), NOW(), NOW()),
-  ('a0000001-0000-0000-0000-000000000011', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'steve@warringahplumbing.com.au', crypt('testpass123', gen_salt('bf')), NOW(), NOW(), NOW()),
-  ('a0000001-0000-0000-0000-000000000012', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'rachel@sunshineelectrics.com.au', crypt('testpass123', gen_salt('bf')), NOW(), NOW(), NOW()),
-  ('a0000001-0000-0000-0000-000000000013', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'paul@goldcoastroofing.com.au', crypt('testpass123', gen_salt('bf')), NOW(), NOW(), NOW()),
-  ('a0000001-0000-0000-0000-000000000014', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'emma@monavalegardens.com.au', crypt('testpass123', gen_salt('bf')), NOW(), NOW(), NOW()),
-  ('a0000001-0000-0000-0000-000000000015', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'james@pittwatertimber.com.au', crypt('testpass123', gen_salt('bf')), NOW(), NOW(), NOW()),
-  ('a0000001-0000-0000-0000-000000000016', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'amy@northernbeachesreno.com.au', crypt('testpass123', gen_salt('bf')), NOW(), NOW(), NOW()),
-  ('a0000001-0000-0000-0000-000000000017', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'dan@brisbanelandscaping.com.au', crypt('testpass123', gen_salt('bf')), NOW(), NOW(), NOW()),
-  ('a0000001-0000-0000-0000-000000000018', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'nicole@avaloncleaning.com.au', crypt('testpass123', gen_salt('bf')), NOW(), NOW(), NOW()),
-  ('a0000001-0000-0000-0000-000000000019', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'mark@deewhydrains.com.au', crypt('testpass123', gen_salt('bf')), NOW(), NOW(), NOW()),
-  ('a0000001-0000-0000-0000-000000000020', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'tina@bulimbaelectrical.com.au', crypt('testpass123', gen_salt('bf')), NOW(), NOW(), NOW())
+  ('a0000001-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'mike@oceansideplumbing.com.au', extensions.crypt('testpass123', extensions.gen_salt('bf')), NOW(), NOW(), NOW()),
+  ('a0000001-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'dave@northernelectrical.com.au', extensions.crypt('testpass123', extensions.gen_salt('bf')), NOW(), NOW(), NOW()),
+  ('a0000001-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'sarah@shorelineroofing.com.au', extensions.crypt('testpass123', extensions.gen_salt('bf')), NOW(), NOW(), NOW()),
+  ('a0000001-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'tom@manlycarpentry.com.au', extensions.crypt('testpass123', extensions.gen_salt('bf')), NOW(), NOW(), NOW()),
+  ('a0000001-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'jen@beachsidepainting.com.au', extensions.crypt('testpass123', extensions.gen_salt('bf')), NOW(), NOW(), NOW()),
+  ('a0000001-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'chris@peninsulalandscaping.com.au', extensions.crypt('testpass123', extensions.gen_salt('bf')), NOW(), NOW(), NOW()),
+  ('a0000001-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'brad@brisbaneplumbingpro.com.au', extensions.crypt('testpass123', extensions.gen_salt('bf')), NOW(), NOW(), NOW()),
+  ('a0000001-0000-0000-0000-000000000008', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'lisa@qldelectricsolutions.com.au', extensions.crypt('testpass123', extensions.gen_salt('bf')), NOW(), NOW(), NOW()),
+  ('a0000001-0000-0000-0000-000000000009', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'matt@northshorebuilders.com.au', extensions.crypt('testpass123', extensions.gen_salt('bf')), NOW(), NOW(), NOW()),
+  ('a0000001-0000-0000-0000-000000000010', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'karen@freshcoatpainting.com.au', extensions.crypt('testpass123', extensions.gen_salt('bf')), NOW(), NOW(), NOW()),
+  ('a0000001-0000-0000-0000-000000000011', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'steve@warringahplumbing.com.au', extensions.crypt('testpass123', extensions.gen_salt('bf')), NOW(), NOW(), NOW()),
+  ('a0000001-0000-0000-0000-000000000012', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'rachel@sunshineelectrics.com.au', extensions.crypt('testpass123', extensions.gen_salt('bf')), NOW(), NOW(), NOW()),
+  ('a0000001-0000-0000-0000-000000000013', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'paul@goldcoastroofing.com.au', extensions.crypt('testpass123', extensions.gen_salt('bf')), NOW(), NOW(), NOW()),
+  ('a0000001-0000-0000-0000-000000000014', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'emma@monavalegardens.com.au', extensions.crypt('testpass123', extensions.gen_salt('bf')), NOW(), NOW(), NOW()),
+  ('a0000001-0000-0000-0000-000000000015', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'james@pittwatertimber.com.au', extensions.crypt('testpass123', extensions.gen_salt('bf')), NOW(), NOW(), NOW()),
+  ('a0000001-0000-0000-0000-000000000016', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'amy@northernbeachesreno.com.au', extensions.crypt('testpass123', extensions.gen_salt('bf')), NOW(), NOW(), NOW()),
+  ('a0000001-0000-0000-0000-000000000017', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'dan@brisbanelandscaping.com.au', extensions.crypt('testpass123', extensions.gen_salt('bf')), NOW(), NOW(), NOW()),
+  ('a0000001-0000-0000-0000-000000000018', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'nicole@avaloncleaning.com.au', extensions.crypt('testpass123', extensions.gen_salt('bf')), NOW(), NOW(), NOW()),
+  ('a0000001-0000-0000-0000-000000000019', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'mark@deewhydrains.com.au', extensions.crypt('testpass123', extensions.gen_salt('bf')), NOW(), NOW(), NOW()),
+  ('a0000001-0000-0000-0000-000000000020', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'tina@bulimbaelectrical.com.au', extensions.crypt('testpass123', extensions.gen_salt('bf')), NOW(), NOW(), NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- Step 3: Insert 20 companies (all verified for directory testing)
