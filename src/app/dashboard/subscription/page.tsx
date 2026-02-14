@@ -9,6 +9,8 @@ import { Loader2, CheckCircle } from "lucide-react";
 import OnboardingProgress from "@/components/OnboardingProgress";
 import Link from "next/link";
 
+const enableStripe = process.env.NEXT_PUBLIC_ENABLE_STRIPE === "true";
+
 // Tier definitions (align with DB check constraint)
 const tiers = [
   {
@@ -68,8 +70,8 @@ export default function SubscriptionPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
 
-      if (priceId) {
-        // Paid tier: Create Stripe checkout session via server action
+      if (priceId && enableStripe) {
+        // Paid tier with Stripe enabled: Create checkout session
         const response = await fetch("/api/create-checkout-session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -80,7 +82,7 @@ export default function SubscriptionPage() {
         if (!url) throw new Error("Failed to create checkout session");
         window.location.href = url;
       } else {
-        // Free tier: Direct DB update
+        // Free tier OR Stripe disabled: Direct DB update
         const { error } = await supabase
           .from("companies")
           .update({ subscription_tier: tierName.toLowerCase(), subscription_id: null })
@@ -89,7 +91,7 @@ export default function SubscriptionPage() {
         if (error) throw error;
 
         setCurrentTier(tierName.toLowerCase());
-        toast({ title: "Success", description: "Subscription updated to Basic!" });
+        toast({ title: "Success", description: `Subscription updated to ${tierName}!` });
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Subscription update failed.";
@@ -150,7 +152,9 @@ export default function SubscriptionPage() {
       </div>
       <div className="text-center space-y-2">
         <p className="text-sm text-muted-foreground dark:text-gray-400">
-          Subscriptions powered by Stripe. Manage billing in your Stripe portal after upgrade.
+          {enableStripe
+            ? "Subscriptions powered by Stripe. Manage billing in your Stripe portal after upgrade."
+            : "Stripe is disabled — all tiers activate instantly for testing."}
         </p>
         {currentTier === "basic" && (
           <Button variant="ghost" asChild>
