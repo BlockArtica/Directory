@@ -32,30 +32,17 @@ export default function SearchBar() {
     try {
       const validated = searchSchema.parse({ service, region });
 
-      // Get user location if available (for leads)
-      let userLocation: { lat: number; long: number } | null = null;
-      if (navigator.geolocation) {
-        userLocation = await new Promise<{ lat: number; long: number } | null>((resolve) => {
-          navigator.geolocation.getCurrentPosition(
-            (pos) => resolve({ lat: pos.coords.latitude, long: pos.coords.longitude }),
-            () => resolve(null)
-          );
-        });
-      }
-
-      // Insert lead
-      await supabase.from("leads").insert({
-        query: `${validated.service || "Any"} in ${validated.region || "Any"}`,
-        user_location: userLocation ? { lat: userLocation.lat, long: userLocation.long } : null,
-      });
-
       // Redirect to directory with params
       const searchParams = new URLSearchParams();
       if (validated.service) searchParams.append("service", validated.service);
       if (validated.region) searchParams.append("region", validated.region);
       router.push(`/directory?${searchParams.toString()}`);
 
-      toast({ title: "Success", description: "Searching—redirecting to results." });
+      // Insert lead in background (don't block redirect)
+      supabase.from("leads").insert({
+        query: `${validated.service || "Any"} in ${validated.region || "Any"}`,
+        user_location: null,
+      });
     } catch {
       toast({ variant: "destructive", title: "Error", description: "Invalid search parameters." });
     } finally {

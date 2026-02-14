@@ -16,8 +16,13 @@ const parsedQuerySchema = z.object({
   region: z.string().optional(),
 });
 
-// OpenAI client (key from env)
-const openai = new OpenAI({ apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY, dangerouslyAllowBrowser: true });
+// Available services for keyword matching fallback
+const availableServices = ["Plumbing", "Electrical", "Carpentry", "Painting", "Landscaping", "Roofing"];
+const availableRegions = ["Northern Beaches, NSW", "Brisbane, QLD"];
+
+// OpenAI client (key from env) - optional, falls back to keyword matching
+const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+const openai = apiKey ? new OpenAI({ apiKey, dangerouslyAllowBrowser: true }) : null;
 
 export default function ChatBox() {
   const [query, setQuery] = useState("");
@@ -32,35 +37,28 @@ export default function ChatBox() {
     setLoading(true);
 
     try {
-      // AI parsing: Prompt OpenAI to extract service/region from natural query
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini", // Efficient model for parsing
-        messages: [
-          { role: "system", content: "Parse the user query into a JSON object with 'service' (e.g., Plumbing) and 'region' (e.g., Brisbane, QLD). Use available services: Plumbing, Electrical, Carpentry, Painting, Landscaping, Roofing. If unclear, use defaults or omit." },
-          { role: "user", content: query },
-        ],
-        response_format: { type: "json_object" },
-      });
+      let validated: { service?: string; region?: string };
 
-      const parsed = JSON.parse(completion.choices[0].message.content || "{}");
-      const validated = parsedQuerySchema.parse(parsed);
-
-      // Get user location if available (for leads)
-      let userLocation: { lat: number; long: number } | null = null;
-      if (navigator.geolocation) {
-        userLocation = await new Promise<{ lat: number; long: number } | null>((resolve) => {
-          navigator.geolocation.getCurrentPosition(
-            (pos) => resolve({ lat: pos.coords.latitude, long: pos.coords.longitude }),
-            () => resolve(null)
-          );
+      if (openai) {
+        // AI parsing via OpenAI
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: "Parse the user query into a JSON object with 'service' (e.g., Plumbing) and 'region' (e.g., Brisbane, QLD). Use available services: Plumbing, Electrical, Carpentry, Painting, Landscaping, Roofing. If unclear, use defaults or omit." },
+            { role: "user", content: query },
+          ],
+          response_format: { type: "json_object" },
         });
-      }
 
-      // Insert lead
-      await supabase.from("leads").insert({
-        query,
-        user_location: userLocation ? { lat: userLocation.lat, long: userLocation.long } : null,
-      });
+        const parsed = JSON.parse(completion.choices[0].message.content || "{}");
+        validated = parsedQuerySchema.parse(parsed);
+      } else {
+        // Fallback: simple keyword matching
+        const lowerQuery = query.toLowerCase();
+        const matchedService = availableServices.find((s) => lowerQuery.includes(s.toLowerCase()));
+        const matchedRegion = availableRegions.find((r) => lowerQuery.includes(r.split(",")[0].toLowerCase()));
+        validated = { service: matchedService, region: matchedRegion };
+      }
 
       // Redirect to directory with params
       const searchParams = new URLSearchParams();
@@ -69,6 +67,9 @@ export default function ChatBox() {
       router.push(`/directory?${searchParams.toString()}`);
 
       toast({ title: "Success", description: "Query processed—redirecting to results." });
+
+      // Insert lead in background (don't block redirect)
+      supabase.from("leads").insert({ query, user_location: null });
     } catch {
       toast({ variant: "destructive", title: "Error", description: "Failed to process query. Try again." });
     } finally {
