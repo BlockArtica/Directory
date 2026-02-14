@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabaseClient"; // Assumes lib/supabaseClient.ts exists (server version)
+import { createServerClient } from "@/lib/supabaseServer";
 import AdSpot from "@/components/AdSpot"; // Assumes components/AdSpot.tsx exists
 import ChatBox from "@/components/ChatBox"; // Assumes components/ChatBox.tsx exists
 import SearchBar from "@/components/SearchBar"; // Assumes components/SearchBar.tsx exists
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const { data: ads, error: adsError } = await supabase
     .from("ads")
     .select("*")

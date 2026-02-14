@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabaseClient"; // Assumes lib/supabaseClient.ts exists (server version)
+import { createServerClient } from "@/lib/supabaseServer";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button"; // Shadcn Button
 import {
@@ -21,10 +21,10 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminPage() {
-  const supabase = createServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session || session.user.email !== process.env.ADMIN_EMAIL) {
+  if (!user || user.email !== process.env.ADMIN_EMAIL) {
     redirect("/auth/login"); // Protect route
   }
 
@@ -41,7 +41,7 @@ export default async function AdminPage() {
 
   async function handleApprove(companyId: string) {
     "use server";
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { error } = await supabase
       .from("companies")
       .update({ verified: true })
@@ -52,7 +52,7 @@ export default async function AdminPage() {
 
   async function handleReject(companyId: string) {
     "use server";
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { error } = await supabase
       .from("companies")
       .delete()

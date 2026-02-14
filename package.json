@@ -19,6 +19,7 @@
     "@radix-ui/react-toast": "^1.2.15",
     "@react-google-maps/api": "^2.19.3",
     "@stripe/stripe-js": "^8.7.0",
+    "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.45.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

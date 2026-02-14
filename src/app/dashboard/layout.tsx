@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabaseClient";
+import { createServerClient } from "@/lib/supabaseServer";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,10 +19,10 @@ export const metadata: Metadata = {
 };
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const supabase = createServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     redirect("/auth/login");
   }
 
@@ -30,14 +30,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { data: profile } = await supabase
     .from("user_profiles")
     .select("user_type")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .single();
 
   const userType = profile?.user_type || "business";
 
   const handleLogout = async () => {
     "use server";
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     await supabase.auth.signOut();
     redirect("/auth/login");
   };

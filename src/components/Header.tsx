@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabaseClient"; // Assumes lib/supabaseClient.ts exists (server version)
+import { createServerClient } from "@/lib/supabaseServer";
 import Link from "next/link";
 import { Button } from "@/components/ui/button"; // Shadcn Button
 import {
@@ -12,14 +12,17 @@ import {
 import { Menu, LogOut } from "lucide-react"; // Icons for menu/logout
 
 export default async function Header() {
-  const supabase = createServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
   const handleLogout = async () => {
     "use server";
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     await supabase.auth.signOut();
   };
+
+  // Map user to session-like shape for template compatibility
+  const session = user ? { user } : null;
 
   return (
     <header className="bg-card dark:bg-gray-800 shadow-md">
