@@ -1,47 +1,111 @@
-"use client"; // Client-side for session handling
+"use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabaseClient"; // Assumes lib/supabaseClient.ts exists
-import { useToast } from "@/hooks/use-toast"; // Shadcn Toast hook
-import { Loader2 } from "lucide-react"; // For loading spinner
+import { useRouter, useSearchParams } from "next/navigation";
+import { createClient } from "@/lib/supabaseClient";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
+import { Suspense } from "react";
 
-export default function AuthCallback() {
+function CallbackHandler() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const supabase = createClient();
 
   useEffect(() => {
-    const hash = window.location.hash.substring(1);
-    const params = new URLSearchParams(hash);
-    const accessToken = params.get("access_token");
-    const refreshToken = params.get("refresh_token");
-    const expiresIn = params.get("expires_in");
+    const handleCallback = async () => {
+      const code = searchParams.get("code");
 
-    if (accessToken && refreshToken && expiresIn) {
-      // Set the session from OAuth tokens
-      supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      }).then(({ data: { session }, error }) => {
-        if (error) {
-          toast({ variant: "destructive", title: "Error", description: "Failed to set session." });
-          router.push("/auth/login");
-        } else if (session) {
-          toast({ title: "Success", description: "Logged in with Google! Complete your profile." });
-          router.push("/dashboard/profile");
+      if (!code) {
+        toast({ variant: "destructive", title: "Error", description: "Invalid callback — no code found." });
+        router.push("/auth/login");
+        return;
+      }
+
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+      if (error) {
+        toast({ variant: "destructive", title: "Error", description: "Failed to authenticate. Please try again." });
+        router.push("/auth/login");
+        return;
+      }
+
+      // Check if user has a profile (user_type set)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push("/auth/login");
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("user_type")
+        .eq("id", session.user.id)
+        .single();
+
+      if (profile) {
+        // Existing user — redirect to dashboard
+        toast({ title: "Welcome back!", description: "Logged in successfully." });
+        router.push("/dashboard");
+      } else {
+        // New OAuth user — check localStorage for user_type from signup page
+        const pendingUserType = localStorage.getItem("pending_user_type");
+        if (pendingUserType === "business" || pendingUserType === "seeker") {
+          await supabase.from("user_profiles").insert({
+            id: session.user.id,
+            user_type: pendingUserType,
+            display_name: session.user.user_metadata?.full_name || session.user.email || "",
+          });
+          localStorage.removeItem("pending_user_type");
+
+          if (pendingUserType === "business") {
+            // Create company stub for business users
+            await supabase.from("companies").insert({
+              user_id: session.user.id,
+              name: "",
+              abn: "",
+              location: { address: "", lat: 0, long: 0, region: "" },
+              services: [],
+              verified: false,
+            });
+            toast({ title: "Welcome!", description: "Complete your business profile." });
+            router.push("/dashboard/profile");
+          } else {
+            toast({ title: "Welcome!", description: "Start exploring trusted tradies." });
+            router.push("/dashboard");
+          }
+        } else {
+          // No type chosen — redirect to signup to pick a type
+          toast({ title: "Almost there!", description: "Please complete your registration." });
+          router.push("/auth/signup?complete=true");
         }
-      });
-    } else {
-      toast({ variant: "destructive", title: "Error", description: "Invalid callback parameters." });
-      router.push("/auth/login");
-    }
-  }, [router, toast, supabase]);
+      }
+    };
+
+    handleCallback();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background dark:bg-gray-900">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
       <p className="ml-2 text-foreground dark:text-white">Logging in...</p>
     </div>
+  );
+}
+
+export default function AuthCallback() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-background dark:bg-gray-900">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="ml-2 text-foreground dark:text-white">Loading...</p>
+        </div>
+      }
+    >
+      <CallbackHandler />
+    </Suspense>
   );
 }
