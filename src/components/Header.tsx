@@ -13,14 +13,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu, LogOut } from "lucide-react";
+import { Menu, LogOut, Sun, Moon } from "lucide-react";
+import { useTheme } from "next-themes";
 import type { User } from "@supabase/supabase-js";
 
 export default function Header() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const supabase = createClient();
   const router = useRouter();
+  const { theme, setTheme } = useTheme();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     // Get initial session
@@ -59,6 +66,20 @@ export default function Header() {
           <Link href="/directory" className="text-muted-foreground dark:text-gray-300 hover:text-primary">
             Directory
           </Link>
+          {mounted && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              aria-label="Toggle theme"
+            >
+              {theme === "dark" ? (
+                <Sun className="h-5 w-5 text-gray-300 hover:text-white" />
+              ) : (
+                <Moon className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+              )}
+            </Button>
+          )}
           {!loading && user ? (
             <>
               <Link href="/dashboard" className="text-muted-foreground dark:text-gray-300 hover:text-primary">
@@ -95,6 +116,15 @@ export default function Header() {
             <DropdownMenuItem asChild>
               <Link href="/directory">Directory</Link>
             </DropdownMenuItem>
+            {mounted && (
+              <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+                {theme === "dark" ? (
+                  <><Sun className="mr-2 h-4 w-4" /> Light Mode</>
+                ) : (
+                  <><Moon className="mr-2 h-4 w-4" /> Dark Mode</>
+                )}
+              </DropdownMenuItem>
+            )}
             {!loading && user ? (
               <>
                 <DropdownMenuItem asChild>

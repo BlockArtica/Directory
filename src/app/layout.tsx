@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google"; // Optional font; remove if not needed
-import "./globals.css"; // Global styles (create src/app/globals.css next)
-import Header from "@/components/Header"; // Assumes components/Header.tsx exists
-import Footer from "@/components/Footer"; // Assumes components/Footer.tsx exists
-import { Toaster } from "@/components/ui/toaster"; // Shadcn Toaster for global notifications
+import { Inter } from "next/font/google";
+import "./globals.css";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import { Toaster } from "@/components/ui/toaster";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
-const inter = Inter({ subsets: ["latin"] }); // Optional: For consistent typography
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Tradies Directory",
@@ -14,14 +15,18 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-  <html lang="en" className="dark"><body className={`${inter.className} min-h-screen flex flex-col bg-background text-foreground antialiased`}>
-    <Header />
-    <main className="flex-grow">
-      {children}
-    </main>
-    <Footer />
-    <Toaster /> {/* Global toast container */}
-  </body></html>
-);
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.className} min-h-screen flex flex-col bg-background text-foreground antialiased`}>
+        <ThemeProvider>
+          <Header />
+          <main className="flex-grow">
+            {children}
+          </main>
+          <Footer />
+          <Toaster />
+        </ThemeProvider>
+      </body>
+    </html>
+  );
 }
 
