@@ -1,8 +1,8 @@
 "use client"; // Client-side for search/filter interactions
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabaseClient"; // Assumes lib/supabaseClient.ts exists
-import { Input } from "@/components/ui/input"; // Shadcn Input
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Shadcn Select
 import { Button } from "@/components/ui/button"; // Shadcn Button
 import { useToast } from "@/hooks/use-toast"; // Shadcn Toast hook
@@ -48,10 +48,19 @@ const availableServices = ["Plumbing", "Electrical", "Carpentry", "Painting", "L
 const availableRegions = ["Northern Beaches, NSW", "Brisbane, QLD"]; // From regions table seed
 
 export default function DirectoryPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+      <DirectoryContent />
+    </Suspense>
+  );
+}
+
+function DirectoryContent() {
+  const searchParams = useSearchParams();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
-  const [service, setService] = useState<string>("");
-  const [region, setRegion] = useState<string>("");
+  const [service, setService] = useState<string>(searchParams.get("service") || "");
+  const [region, setRegion] = useState<string>(searchParams.get("region") || "");
   const [userLocation, setUserLocation] = useState<{ lat: number; long: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
@@ -69,21 +78,29 @@ export default function DirectoryPage() {
       if (error) {
         toast({ variant: "destructive", title: "Error", description: "Failed to load directory." });
       } else {
-        setCompanies(data || []);
-        setFilteredCompanies(data || []);
+        const allCompanies = (data || []) as Company[];
+        setCompanies(allCompanies);
+
+        // Auto-filter if URL params present
+        const urlService = searchParams.get("service");
+        const urlRegion = searchParams.get("region");
+        if (urlService || urlRegion) {
+          let results = allCompanies;
+          if (urlService) {
+            results = results.filter((comp) => comp.services.includes(urlService));
+          }
+          if (urlRegion) {
+            results = results.filter((comp) => comp.location.region === urlRegion);
+          }
+          setFilteredCompanies(results);
+        } else {
+          setFilteredCompanies(allCompanies);
+        }
       }
       setLoading(false);
     };
     fetchCompanies();
-
-    // Get user location (with permission)
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => setUserLocation({ lat: pos.coords.latitude, long: pos.coords.longitude }),
-        () => toast({ title: "Info", description: "Location access denied. Sorting without distance." })
-      );
-    }
-  }, []);
+  }, [searchParams]);
 
   const handleSearch = async () => {
     setSearching(true);
