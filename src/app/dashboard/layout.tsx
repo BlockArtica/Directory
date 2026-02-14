@@ -1,6 +1,6 @@
-import { createServerClient } from "@/lib/supabaseClient"; // Assumes lib/supabaseClient.ts exists (server version)
+import { createServerClient } from "@/lib/supabaseClient";
 import { redirect } from "next/navigation";
-import { Button } from "@/components/ui/button"; // Shadcn Button
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,8 +8,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"; // Shadcn DropdownMenu
-import { LogOut, Menu, User, CreditCard } from "lucide-react"; // Icons for nav
+} from "@/components/ui/dropdown-menu";
+import { LogOut, Menu, User, CreditCard, Heart, Search, Eye, MessageSquare, Star } from "lucide-react";
 import Link from "next/link";
 import { Metadata } from "next";
 
@@ -26,12 +26,36 @@ export default async function DashboardLayout({ children }: { children: React.Re
     redirect("/auth/login");
   }
 
+  // Fetch user profile for nav bifurcation
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("user_type")
+    .eq("id", session.user.id)
+    .single();
+
+  const userType = profile?.user_type || "business";
+
   const handleLogout = async () => {
-    "use server"; // Server action for logout
+    "use server";
     const supabase = createServerClient();
     await supabase.auth.signOut();
     redirect("/auth/login");
   };
+
+  const businessNav = [
+    { href: "/dashboard/profile", label: "Profile", icon: User },
+    { href: "/dashboard/subscription", label: "Subscription", icon: CreditCard },
+  ];
+
+  const seekerNav = [
+    { href: "/dashboard/favourites", label: "Favourites", icon: Heart },
+    { href: "/dashboard/saved-searches", label: "Saved Searches", icon: Search },
+    { href: "/dashboard/recent-views", label: "Recent Views", icon: Eye },
+    { href: "/dashboard/quotes", label: "Quotes", icon: MessageSquare },
+    { href: "/dashboard/reviews", label: "Reviews", icon: Star },
+  ];
+
+  const navItems = userType === "business" ? businessNav : seekerNav;
 
   return (
     <div className="min-h-screen flex flex-col bg-background dark:bg-gray-900">
@@ -40,13 +64,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <Link href="/dashboard" className="text-xl font-bold text-foreground dark:text-white">
             Tradies Dashboard
           </Link>
-          <nav className="hidden md:flex space-x-4">
-            <Link href="/dashboard/profile" className="text-muted-foreground dark:text-gray-300 hover:text-primary">
-              Profile
-            </Link>
-            <Link href="/dashboard/subscription" className="text-muted-foreground dark:text-gray-300 hover:text-primary">
-              Subscription
-            </Link>
+          <nav className="hidden md:flex space-x-4 items-center">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="text-muted-foreground dark:text-gray-300 hover:text-primary"
+              >
+                {item.label}
+              </Link>
+            ))}
             <form action={handleLogout}>
               <Button variant="ghost" className="text-muted-foreground dark:text-gray-300 hover:text-primary">
                 Logout
@@ -62,18 +89,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <DropdownMenuContent align="end" className="w-48 bg-card dark:bg-gray-800">
               <DropdownMenuLabel className="text-foreground dark:text-white">Menu</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/dashboard/profile" className="flex items-center">
-                  <User className="mr-2 h-4 w-4" />
-                  Profile
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/dashboard/subscription" className="flex items-center">
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Subscription
-                </Link>
-              </DropdownMenuItem>
+              {navItems.map((item) => (
+                <DropdownMenuItem key={item.href} asChild>
+                  <Link href={item.href} className="flex items-center">
+                    <item.icon className="mr-2 h-4 w-4" />
+                    {item.label}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <form action={handleLogout} className="w-full">
@@ -91,7 +114,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         {children}
       </main>
       <footer className="bg-card dark:bg-gray-800 py-4 text-center text-muted-foreground dark:text-gray-400">
-        © 2026 Tradies Directory
+        &copy; 2026 Tradies Directory
       </footer>
     </div>
   );
