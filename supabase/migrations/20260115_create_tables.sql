@@ -114,5 +114,4 @@ FOR EACH ROW EXECUTE PROCEDURE create_company_stub();
 -- Seed Regions (Optional for Expansion Test)
 INSERT INTO regions (name) VALUES ('Northern Beaches, NSW'), ('Brisbane, QLD');
 
--- Seed Example Job (For Testing Notice Board)
-INSERT INTO jobs (user_id, title, description, location) VALUES ('your_test_user_id_here', 'Plumber Needed in Brisbane', 'Full-time position for experienced plumber', '{"address": "Brisbane, QLD", "lat": -27.4698, "long": 153.0251, "region": "Brisbane, QLD"}');  -- Replace user_id with a test user from auth.users
+-- Test data is seeded separately after all migrations
