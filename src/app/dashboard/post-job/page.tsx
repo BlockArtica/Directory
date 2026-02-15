@@ -28,6 +28,11 @@ const jobSchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters"),
   address: z.string().min(3, "Location is required"),
   job_type: z.string().min(1, "Job type is required"),
+  pay_rate: z.string().optional(),
+  contact_email: z.string().email("Invalid email address").optional().or(z.literal("")),
+  contact_phone: z.string().optional(),
+  experience_level: z.string().optional(),
+  application_deadline: z.string().optional(),
 });
 
 interface JobData {
@@ -37,6 +42,11 @@ interface JobData {
   location: { address: string } | null;
   posted_at: string;
   job_type: string | null;
+  pay_rate: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  experience_level: string | null;
+  application_deadline: string | null;
 }
 
 export default function PostJobPage() {
@@ -46,7 +56,7 @@ export default function PostJobPage() {
   const [submitting, setSubmitting] = useState(false);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [companyTier, setCompanyTier] = useState<string>("basic");
-  const [form, setForm] = useState({ title: "", description: "", address: "", job_type: "", custom_job_type: "" });
+  const [form, setForm] = useState({ title: "", description: "", address: "", job_type: "", custom_job_type: "", pay_rate: "", contact_email: "", contact_phone: "", experience_level: "", application_deadline: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const supabase = createClient();
   const { toast } = useToast();
@@ -71,7 +81,7 @@ export default function PostJobPage() {
 
       const { data } = await supabase
         .from("jobs")
-        .select("id, title, description, location, posted_at, job_type")
+        .select("id, title, description, location, posted_at, job_type, pay_rate, contact_email, contact_phone, experience_level, application_deadline")
         .eq("user_id", session.user.id)
         .order("posted_at", { ascending: false });
 
@@ -113,8 +123,13 @@ export default function PostJobPage() {
         description: form.description,
         location: { address: form.address, lat: 0, long: 0, region: "" },
         job_type: resolvedJobType,
+        pay_rate: form.pay_rate || null,
+        contact_email: form.contact_email || null,
+        contact_phone: form.contact_phone || null,
+        experience_level: form.experience_level || null,
+        application_deadline: form.application_deadline || null,
       })
-      .select("id, title, description, location, posted_at, job_type")
+      .select("id, title, description, location, posted_at, job_type, pay_rate, contact_email, contact_phone, experience_level, application_deadline")
       .single();
 
     setSubmitting(false);
@@ -126,7 +141,7 @@ export default function PostJobPage() {
 
     if (data) {
       setJobs((prev) => [data as JobData, ...prev]);
-      setForm({ title: "", description: "", address: "", job_type: "", custom_job_type: "" });
+      setForm({ title: "", description: "", address: "", job_type: "", custom_job_type: "", pay_rate: "", contact_email: "", contact_phone: "", experience_level: "", application_deadline: "" });
       toast({ title: "Job Posted", description: "Your job listing is now live." });
     }
   };
@@ -245,6 +260,65 @@ export default function PostJobPage() {
               />
               {errors.address && <p className="text-sm text-red-500 mt-1">{errors.address}</p>}
             </div>
+            <div>
+              <Label htmlFor="pay_rate">Pay / Rate (optional)</Label>
+              <Input
+                id="pay_rate"
+                value={form.pay_rate}
+                onChange={(e) => setForm((f) => ({ ...f, pay_rate: e.target.value }))}
+                placeholder="e.g. $45/hr, $80k-$100k"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="experience_level">Experience Level (optional)</Label>
+              <Select
+                value={form.experience_level}
+                onValueChange={(value) => setForm((f) => ({ ...f, experience_level: value }))}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select experience level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Entry">Entry</SelectItem>
+                  <SelectItem value="Mid-level">Mid-level</SelectItem>
+                  <SelectItem value="Senior">Senior</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="application_deadline">Application Deadline (optional)</Label>
+              <Input
+                id="application_deadline"
+                type="date"
+                value={form.application_deadline}
+                onChange={(e) => setForm((f) => ({ ...f, application_deadline: e.target.value }))}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="contact_email">Contact Email (optional)</Label>
+              <Input
+                id="contact_email"
+                type="email"
+                value={form.contact_email}
+                onChange={(e) => setForm((f) => ({ ...f, contact_email: e.target.value }))}
+                placeholder="hiring@example.com"
+                className="mt-1"
+              />
+              {errors.contact_email && <p className="text-sm text-red-500 mt-1">{errors.contact_email}</p>}
+            </div>
+            <div>
+              <Label htmlFor="contact_phone">Contact Phone (optional)</Label>
+              <Input
+                id="contact_phone"
+                type="tel"
+                value={form.contact_phone}
+                onChange={(e) => setForm((f) => ({ ...f, contact_phone: e.target.value }))}
+                placeholder="04XX XXX XXX"
+                className="mt-1"
+              />
+            </div>
             <Button type="submit" disabled={submitting}>
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Post Job
@@ -273,6 +347,13 @@ export default function PostJobPage() {
                     <p className="text-sm text-muted-foreground dark:text-gray-400 mt-1 line-clamp-2">
                       {job.description}
                     </p>
+                    {(job.pay_rate || job.experience_level || job.application_deadline) && (
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground dark:text-gray-400">
+                        {job.pay_rate && <span>{job.pay_rate}</span>}
+                        {job.experience_level && <span>{job.experience_level}</span>}
+                        {job.application_deadline && <span>Deadline: {new Date(job.application_deadline).toLocaleDateString()}</span>}
+                      </div>
+                    )}
                     <p className="text-xs text-muted-foreground dark:text-gray-500 mt-2">
                       Posted {new Date(job.posted_at).toLocaleDateString()}
                       {job.location?.address && ` | ${job.location.address}`}
