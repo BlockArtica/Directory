@@ -168,11 +168,16 @@ export default function ProfilePage() {
         licenseUrls = await uploadLicenses(session.user.id);
       }
 
-      const updateData = {
+      const skipVerification = process.env.NEXT_PUBLIC_SKIP_VERIFICATION === "true";
+
+      const updateData: Record<string, unknown> = {
         ...formData,
         licenses: licenseUrls.length > 0 ? licenseUrls : formData.licenses, // JSONB array of URLs
-        verified: false, // Pending admin approval
       };
+
+      if (!skipVerification) {
+        updateData.verified = false; // Pending admin approval
+      }
 
       const { error } = await supabase
         .from("companies")
@@ -181,7 +186,12 @@ export default function ProfilePage() {
 
       if (error) throw error;
 
-      toast({ title: "Success", description: "Profile updated! Awaiting admin approval." });
+      toast({
+        title: "Success",
+        description: skipVerification
+          ? "Profile updated!"
+          : "Profile updated! Awaiting admin approval.",
+      });
 
       // Check if user is on basic tier — prompt to choose a plan
       const { data: company } = await supabase
