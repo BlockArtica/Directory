@@ -336,11 +336,13 @@ export default function DashboardPage() {
               <User className="h-4 w-4" /> Edit Profile
             </Link>
           </Button>
-          <Button asChild variant="outline">
-            <Link href="/dashboard/post-job" className="flex items-center gap-2">
-              <Briefcase className="h-4 w-4" /> Post Job
-            </Link>
-          </Button>
+          {hasFeatureAccess(tier, "post_jobs") && (
+            <Button asChild variant="outline">
+              <Link href="/dashboard/post-job" className="flex items-center gap-2">
+                <Briefcase className="h-4 w-4" /> Post Job
+              </Link>
+            </Button>
+          )}
           {hasFeatureAccess(tier, "ad_booking") && (
             <Button asChild variant="outline">
               <Link href="/dashboard/ad-booking" className="flex items-center gap-2">
@@ -445,9 +447,11 @@ export default function DashboardPage() {
                 ))}
               </>
             )}
-            <Button asChild variant="link" className="px-0">
-              <Link href="/dashboard/post-job">Post New</Link>
-            </Button>
+            {hasFeatureAccess(tier, "post_jobs") && (
+              <Button asChild variant="link" className="px-0">
+                <Link href="/dashboard/post-job">Post New</Link>
+              </Button>
+            )}
           </CardContent>
         </Card>
 

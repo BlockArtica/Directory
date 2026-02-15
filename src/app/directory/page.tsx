@@ -52,7 +52,7 @@ function DirectoryContent() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [reviewMap, setReviewMap] = useState<ReviewMap>({});
   const [loading, setLoading] = useState(true);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(searchParams.get("company"));
   const [userLocation, setUserLocation] = useState<{ lat: number; long: number } | null>(null);
   const { toast } = useToast();
   const supabase = createClient();
