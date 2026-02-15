@@ -75,7 +75,8 @@ export default function ProfilePage() {
         .eq("user_id", session.user.id)
         .single();
 
-      if (error) {
+      if (error && error.code !== "PGRST116") {
+        // PGRST116 = no rows returned — expected for new users without a company stub
         toast({ variant: "destructive", title: "Error", description: "Failed to load profile." });
       } else if (data && isMounted) {
         setFormData({
@@ -170,19 +171,19 @@ export default function ProfilePage() {
 
       const skipVerification = process.env.NEXT_PUBLIC_SKIP_VERIFICATION === "true";
 
-      const updateData: Record<string, unknown> = {
+      const upsertData: Record<string, unknown> = {
         ...formData,
+        user_id: session.user.id,
         licenses: licenseUrls.length > 0 ? licenseUrls : formData.licenses, // JSONB array of URLs
       };
 
       if (!skipVerification) {
-        updateData.verified = false; // Pending admin approval
+        upsertData.verified = false; // Pending admin approval
       }
 
       const { error } = await supabase
         .from("companies")
-        .update(updateData)
-        .eq("user_id", session.user.id);
+        .upsert(upsertData, { onConflict: "user_id" });
 
       if (error) throw error;
 
@@ -193,14 +194,15 @@ export default function ProfilePage() {
           : "Profile updated! Awaiting admin approval.",
       });
 
-      // Check if user is on basic tier — prompt to choose a plan
+      // Check if user needs to choose a plan — redirect to subscription
+      // if no company found or still on default basic tier
       const { data: company } = await supabase
         .from("companies")
         .select("subscription_tier")
         .eq("user_id", session.user.id)
         .single();
 
-      if (company?.subscription_tier === "basic") {
+      if (!company || company.subscription_tier === "basic") {
         router.push("/dashboard/subscription");
       } else {
         router.push("/dashboard");
