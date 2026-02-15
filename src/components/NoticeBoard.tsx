@@ -1,23 +1,30 @@
-"use client"; // Client-side for data fetch
+"use client";
 
-import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabaseClient"; // Assumes lib/supabaseClient.ts exists
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"; // Shadcn Card
-import { Loader2 } from "lucide-react"; // For loading spinner
-import { useToast } from "@/hooks/use-toast"; // Shadcn Toast hook
+import { useState, useEffect, useMemo } from "react";
+import { createClient } from "@/lib/supabaseClient";
+import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Loader2, ChevronDown } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { getJobTypeColor } from "@/lib/jobTypes";
+import Link from "next/link";
 
-// Type for job (align with DB schema)
 type Job = {
   id: string;
   title: string;
   description: string;
-  location: { address: string; lat: number; long: number; region: string };
+  job_type: string | null;
+  location: { address: string; lat: number; long: number; region: string } | null;
   posted_at: string;
+  company_id: string | null;
+  companies: { id: string; name: string } | { id: string; name: string }[] | null;
 };
 
 export default function NoticeBoard() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [activeTypeFilters, setActiveTypeFilters] = useState<string[]>([]);
   const { toast } = useToast();
   const supabase = createClient();
 
@@ -25,19 +32,48 @@ export default function NoticeBoard() {
     const fetchJobs = async () => {
       const { data, error } = await supabase
         .from("jobs")
-        .select("*")
+        .select("*, companies(id, name)")
         .order("posted_at", { ascending: false })
-        .limit(10); // Limit to recent for front page
+        .limit(20);
 
       if (error) {
         toast({ variant: "destructive", title: "Error", description: "Failed to load jobs." });
       } else {
-        setJobs(data || []);
+        setJobs((data || []) as Job[]);
       }
       setLoading(false);
     };
     fetchJobs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Extract unique job types from data for filter pills
+  const availableJobTypes = useMemo(() => {
+    const set = new Set<string>();
+    jobs.forEach((j) => {
+      if (j.job_type) set.add(j.job_type);
+    });
+    return Array.from(set).sort();
+  }, [jobs]);
+
+  // Filter jobs by active type filters (client-side)
+  const filteredJobs = useMemo(() => {
+    if (activeTypeFilters.length === 0) return jobs;
+    return jobs.filter((j) => j.job_type && activeTypeFilters.includes(j.job_type));
+  }, [jobs, activeTypeFilters]);
+
+  const toggleTypeFilter = (type: string) => {
+    setActiveTypeFilters((prev) =>
+      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
+    );
+  };
+
+  // Normalize Supabase join (array vs object)
+  const getCompany = (job: Job) => {
+    if (!job.companies) return null;
+    if (Array.isArray(job.companies)) return job.companies[0] || null;
+    return job.companies;
+  };
 
   if (loading) {
     return (
@@ -48,28 +84,128 @@ export default function NoticeBoard() {
   }
 
   return (
-    <div className="space-y-8">
-      <h2 className="text-3xl font-bold text-center text-foreground dark:text-white">Job & Notice Board</h2>
-      <p className="text-center text-muted-foreground dark:text-gray-300">Latest opportunities for tradies in Australia</p>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {jobs.length === 0 ? (
-          <p className="col-span-full text-center text-muted-foreground dark:text-gray-400">No jobs posted yet.</p>
+    <div className="space-y-6">
+      <div className="text-center space-y-2">
+        <h2 className="text-3xl font-bold text-foreground dark:text-white">Job & Notice Board</h2>
+        <p className="text-muted-foreground dark:text-gray-300">Latest opportunities for tradies in Australia</p>
+      </div>
+
+      {/* Job type filter pills */}
+      {availableJobTypes.length > 0 && (
+        <div className="flex flex-wrap gap-2 justify-center">
+          {availableJobTypes.map((type) => {
+            const isActive = activeTypeFilters.includes(type);
+            return (
+              <Badge
+                key={type}
+                variant={isActive ? "default" : "outline"}
+                className={`cursor-pointer transition-colors ${isActive ? getJobTypeColor(type) : "hover:bg-muted"}`}
+                onClick={() => toggleTypeFilter(type)}
+              >
+                {type}
+              </Badge>
+            );
+          })}
+          {activeTypeFilters.length > 0 && (
+            <Badge
+              variant="outline"
+              className="cursor-pointer hover:bg-muted text-muted-foreground"
+              onClick={() => setActiveTypeFilters([])}
+            >
+              Clear filters
+            </Badge>
+          )}
+        </div>
+      )}
+
+      {/* Job rows */}
+      <div className="rounded-lg border border-border bg-card dark:bg-gray-800/50 overflow-hidden">
+        {filteredJobs.length === 0 ? (
+          <div className="px-4 py-12 text-center text-muted-foreground dark:text-gray-400">
+            {jobs.length === 0 ? "No jobs posted yet." : "No jobs match the selected filters."}
+          </div>
         ) : (
-          jobs.map((job) => (
-            <Card key={job.id} className="flex flex-col h-full overflow-hidden rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 bg-card dark:bg-gray-800 border border-border dark:border-gray-700">
-              <CardHeader className="space-y-1">
-                <CardTitle className="text-xl font-bold text-foreground dark:text-white">{job.title}</CardTitle>
-                <CardDescription className="text-muted-foreground dark:text-gray-300">{new Date(job.posted_at).toLocaleDateString()}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow space-y-2 text-sm text-foreground dark:text-white">
-                <p className="line-clamp-3">{job.description}</p>
-                <p className="flex items-center">
-                  <span className="mr-2">Location:</span>
-                  {job.location.region}
-                </p>
-              </CardContent>
-            </Card>
-          ))
+          filteredJobs.map((job) => {
+            const company = getCompany(job);
+            const isExpanded = expandedId === job.id;
+
+            return (
+              <Collapsible
+                key={job.id}
+                open={isExpanded}
+                onOpenChange={() => setExpandedId(isExpanded ? null : job.id)}
+              >
+                <CollapsibleTrigger asChild>
+                  <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors border-b border-border">
+                    {/* Left: Type badge, title, company, region, date */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {job.job_type && (
+                          <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 font-medium ${getJobTypeColor(job.job_type)}`}>
+                            {job.job_type}
+                          </Badge>
+                        )}
+                        <span className="font-semibold text-foreground dark:text-white truncate">
+                          {job.title}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-0.5 text-sm text-muted-foreground">
+                        {company && (
+                          <>
+                            <Link
+                              href={`/directory?company=${company.id}`}
+                              className="hover:text-primary hover:underline transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {company.name}
+                            </Link>
+                            <span>·</span>
+                          </>
+                        )}
+                        {job.location?.region && (
+                          <>
+                            <span>{job.location.region}</span>
+                            <span>·</span>
+                          </>
+                        )}
+                        <span>{new Date(job.posted_at).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+
+                    {/* Right: Chevron */}
+                    <div className="shrink-0">
+                      <ChevronDown
+                        className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
+                          isExpanded ? "rotate-180" : ""
+                        }`}
+                      />
+                    </div>
+                  </div>
+                </CollapsibleTrigger>
+
+                <CollapsibleContent>
+                  <div className="px-4 py-4 bg-muted/30 border-b border-border space-y-3">
+                    <p className="text-sm text-foreground dark:text-gray-200 whitespace-pre-line">
+                      {job.description}
+                    </p>
+                    {job.location?.address && (
+                      <p className="text-sm text-muted-foreground">
+                        Location: {job.location.address}
+                      </p>
+                    )}
+                    {company && (
+                      <Link
+                        href={`/directory?company=${company.id}`}
+                        className="inline-flex items-center text-sm text-primary hover:underline font-medium"
+                      >
+                        View in Directory →
+                      </Link>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          })
         )}
       </div>
     </div>
