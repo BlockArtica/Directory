@@ -8,14 +8,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, Briefcase, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2, Briefcase, Trash2, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
+import { hasFeatureAccess } from "@/lib/tierGating";
+import { JOB_TYPES, getJobTypeColor } from "@/lib/jobTypes";
+import Link from "next/link";
 
 const jobSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   address: z.string().min(3, "Location is required"),
+  job_type: z.string().min(1, "Job type is required"),
 });
 
 interface JobData {
@@ -24,6 +36,7 @@ interface JobData {
   description: string;
   location: { address: string } | null;
   posted_at: string;
+  job_type: string | null;
 }
 
 export default function PostJobPage() {
@@ -31,25 +44,41 @@ export default function PostJobPage() {
   const [jobs, setJobs] = useState<JobData[]>([]);
   const [fetching, setFetching] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({ title: "", description: "", address: "" });
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  const [companyTier, setCompanyTier] = useState<string>("basic");
+  const [form, setForm] = useState({ title: "", description: "", address: "", job_type: "", custom_job_type: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const supabase = createClient();
   const { toast } = useToast();
 
+  const canPostJobs = hasFeatureAccess(companyTier, "post_jobs");
+
   useEffect(() => {
     if (!session) return;
 
-    const fetchJobs = async () => {
+    const fetchData = async () => {
+      // Fetch company for tier check and company_id
+      const { data: company } = await supabase
+        .from("companies")
+        .select("id, subscription_tier")
+        .eq("user_id", session.user.id)
+        .single();
+
+      if (company) {
+        setCompanyId(company.id);
+        setCompanyTier(company.subscription_tier || "basic");
+      }
+
       const { data } = await supabase
         .from("jobs")
-        .select("id, title, description, location, posted_at")
+        .select("id, title, description, location, posted_at, job_type")
         .eq("user_id", session.user.id)
         .order("posted_at", { ascending: false });
 
       setJobs((data || []) as JobData[]);
       setFetching(false);
     };
-    fetchJobs();
+    fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
@@ -57,7 +86,12 @@ export default function PostJobPage() {
     e.preventDefault();
     setErrors({});
 
-    const result = jobSchema.safeParse(form);
+    const resolvedJobType = form.job_type === "Custom" ? form.custom_job_type : form.job_type;
+
+    const result = jobSchema.safeParse({
+      ...form,
+      job_type: resolvedJobType,
+    });
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
       result.error.issues.forEach((issue) => {
@@ -74,11 +108,13 @@ export default function PostJobPage() {
       .from("jobs")
       .insert({
         user_id: session.user.id,
+        company_id: companyId,
         title: form.title,
         description: form.description,
         location: { address: form.address, lat: 0, long: 0, region: "" },
+        job_type: resolvedJobType,
       })
-      .select("id, title, description, location, posted_at")
+      .select("id, title, description, location, posted_at, job_type")
       .single();
 
     setSubmitting(false);
@@ -90,7 +126,7 @@ export default function PostJobPage() {
 
     if (data) {
       setJobs((prev) => [data as JobData, ...prev]);
-      setForm({ title: "", description: "", address: "" });
+      setForm({ title: "", description: "", address: "", job_type: "", custom_job_type: "" });
       toast({ title: "Job Posted", description: "Your job listing is now live." });
     }
   };
@@ -109,6 +145,27 @@ export default function PostJobPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Tier gate: show upgrade prompt for basic users
+  if (!canPostJobs) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-foreground dark:text-white">Post a Job</h1>
+        <Card className="bg-card dark:bg-gray-800">
+          <CardContent className="pt-6 text-center space-y-4">
+            <Lock className="h-12 w-12 mx-auto text-muted-foreground" />
+            <h2 className="text-xl font-semibold text-foreground dark:text-white">Pro Feature</h2>
+            <p className="text-muted-foreground dark:text-gray-400">
+              Job posting is available on the Pro plan and above. Upgrade your subscription to start posting jobs.
+            </p>
+            <Button asChild>
+              <Link href="/dashboard/subscription">Upgrade to Pro</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -136,6 +193,34 @@ export default function PostJobPage() {
                 className="mt-1"
               />
               {errors.title && <p className="text-sm text-red-500 mt-1">{errors.title}</p>}
+            </div>
+            <div>
+              <Label htmlFor="job_type">Job Type</Label>
+              <Select
+                value={form.job_type}
+                onValueChange={(value) => setForm((f) => ({ ...f, job_type: value, custom_job_type: value === "Custom" ? f.custom_job_type : "" }))}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select job type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {JOB_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="Custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+              {form.job_type === "Custom" && (
+                <Input
+                  value={form.custom_job_type}
+                  onChange={(e) => setForm((f) => ({ ...f, custom_job_type: e.target.value }))}
+                  placeholder="Enter custom job type"
+                  className="mt-2"
+                />
+              )}
+              {errors.job_type && <p className="text-sm text-red-500 mt-1">{errors.job_type}</p>}
             </div>
             <div>
               <Label htmlFor="description">Description</Label>
@@ -177,7 +262,14 @@ export default function PostJobPage() {
               <CardContent className="pt-6">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-medium text-foreground dark:text-white">{job.title}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-foreground dark:text-white">{job.title}</p>
+                      {job.job_type && (
+                        <Badge variant="secondary" className={getJobTypeColor(job.job_type)}>
+                          {job.job_type}
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground dark:text-gray-400 mt-1 line-clamp-2">
                       {job.description}
                     </p>
