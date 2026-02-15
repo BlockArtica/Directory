@@ -18,13 +18,18 @@ type Job = {
   posted_at: string;
   company_id: string | null;
   companies: { id: string; name: string } | { id: string; name: string }[] | null;
+  pay_rate: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  experience_level: string | null;
+  application_deadline: string | null;
 };
 
 export default function NoticeBoard() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [activeTypeFilters, setActiveTypeFilters] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<string>("All");
   const { toast } = useToast();
   const supabase = createClient();
 
@@ -56,17 +61,11 @@ export default function NoticeBoard() {
     return Array.from(set).sort();
   }, [jobs]);
 
-  // Filter jobs by active type filters (client-side)
+  // Filter jobs by active tab (single selection)
   const filteredJobs = useMemo(() => {
-    if (activeTypeFilters.length === 0) return jobs;
-    return jobs.filter((j) => j.job_type && activeTypeFilters.includes(j.job_type));
-  }, [jobs, activeTypeFilters]);
-
-  const toggleTypeFilter = (type: string) => {
-    setActiveTypeFilters((prev) =>
-      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
-    );
-  };
+    if (activeTab === "All") return jobs;
+    return jobs.filter((j) => j.job_type === activeTab);
+  }, [jobs, activeTab]);
 
   // Normalize Supabase join (array vs object)
   const getCompany = (job: Job) => {
@@ -87,34 +86,25 @@ export default function NoticeBoard() {
     <div className="space-y-6">
       <div className="text-center space-y-2">
         <h2 className="text-3xl font-bold text-foreground dark:text-white">Job & Notice Board</h2>
-        <p className="text-muted-foreground dark:text-gray-300">Latest opportunities for tradies in Australia</p>
+        <p className="text-muted-foreground dark:text-gray-300">Latest Opportunities &amp; Notices in Australia</p>
       </div>
 
-      {/* Job type filter pills */}
+      {/* Horizontal category tabs */}
       {availableJobTypes.length > 0 && (
-        <div className="flex flex-wrap gap-2 justify-center">
-          {availableJobTypes.map((type) => {
-            const isActive = activeTypeFilters.includes(type);
-            return (
-              <Badge
-                key={type}
-                variant={isActive ? "default" : "outline"}
-                className={`cursor-pointer transition-colors ${isActive ? getJobTypeColor(type) : "hover:bg-muted"}`}
-                onClick={() => toggleTypeFilter(type)}
-              >
-                {type}
-              </Badge>
-            );
-          })}
-          {activeTypeFilters.length > 0 && (
-            <Badge
-              variant="outline"
-              className="cursor-pointer hover:bg-muted text-muted-foreground"
-              onClick={() => setActiveTypeFilters([])}
+        <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
+          {["All", ...availableJobTypes].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                activeTab === tab
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
             >
-              Clear filters
-            </Badge>
-          )}
+              {tab}
+            </button>
+          ))}
         </div>
       )}
 
@@ -122,7 +112,7 @@ export default function NoticeBoard() {
       <div className="rounded-lg border border-border bg-card dark:bg-gray-800/50 overflow-hidden">
         {filteredJobs.length === 0 ? (
           <div className="px-4 py-12 text-center text-muted-foreground dark:text-gray-400">
-            {jobs.length === 0 ? "No jobs posted yet." : "No jobs match the selected filters."}
+            {jobs.length === 0 ? "No jobs posted yet." : "No jobs in this category."}
           </div>
         ) : (
           filteredJobs.map((job) => {
@@ -188,10 +178,15 @@ export default function NoticeBoard() {
                     <p className="text-sm text-foreground dark:text-gray-200 whitespace-pre-line">
                       {job.description}
                     </p>
-                    {job.location?.address && (
-                      <p className="text-sm text-muted-foreground">
-                        Location: {job.location.address}
-                      </p>
+                    {(job.pay_rate || job.experience_level || job.contact_email || job.contact_phone || job.application_deadline || job.location?.address) && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-sm text-muted-foreground">
+                        {job.pay_rate && <span>Pay: {job.pay_rate}</span>}
+                        {job.experience_level && <span>Experience: {job.experience_level}</span>}
+                        {job.location?.address && <span>Location: {job.location.address}</span>}
+                        {job.application_deadline && <span>Deadline: {new Date(job.application_deadline).toLocaleDateString()}</span>}
+                        {job.contact_email && <span>Email: {job.contact_email}</span>}
+                        {job.contact_phone && <span>Phone: {job.contact_phone}</span>}
+                      </div>
                     )}
                     {company && (
                       <Link
