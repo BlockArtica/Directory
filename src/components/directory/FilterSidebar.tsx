@@ -285,38 +285,36 @@ function FilterControls({
 
 export default function FilterSidebar(props: FilterSidebarProps) {
   return (
-    <>
-      {/* Desktop sidebar */}
-      <aside className="hidden lg:block w-72 shrink-0">
-        <ScrollArea className="h-[calc(100vh-8rem)]">
+    <aside className="hidden lg:block w-72 shrink-0">
+      <ScrollArea className="h-[calc(100vh-8rem)]">
+        <div className="pr-4 pb-8">
+          <FilterControls {...props} />
+        </div>
+      </ScrollArea>
+    </aside>
+  );
+}
+
+export function MobileFilterSheet(props: FilterSidebarProps) {
+  return (
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-2">
+          <SlidersHorizontal className="h-4 w-4" />
+          Filters
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-80 px-4 pt-8">
+        <SheetHeader className="sr-only">
+          <SheetTitle>Filters</SheetTitle>
+          <SheetDescription>Filter and sort directory listings</SheetDescription>
+        </SheetHeader>
+        <ScrollArea className="h-[calc(100vh-4rem)]">
           <div className="pr-4 pb-8">
             <FilterControls {...props} />
           </div>
         </ScrollArea>
-      </aside>
-
-      {/* Mobile sheet */}
-      <div className="lg:hidden">
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2">
-              <SlidersHorizontal className="h-4 w-4" />
-              Filters
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-80 px-4 pt-8">
-            <SheetHeader className="sr-only">
-              <SheetTitle>Filters</SheetTitle>
-              <SheetDescription>Filter and sort directory listings</SheetDescription>
-            </SheetHeader>
-            <ScrollArea className="h-[calc(100vh-4rem)]">
-              <div className="pr-4 pb-8">
-                <FilterControls {...props} />
-              </div>
-            </ScrollArea>
-          </SheetContent>
-        </Sheet>
-      </div>
-    </>
+      </SheetContent>
+    </Sheet>
   );
 }

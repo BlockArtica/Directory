@@ -1,15 +1,14 @@
-"use client"; // Client-side for search/filter interactions
+"use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabaseClient"; // Assumes lib/supabaseClient.ts exists
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Shadcn Select
-import { Button } from "@/components/ui/button"; // Shadcn Button
-import { useToast } from "@/hooks/use-toast"; // Shadcn Toast hook
-import { Loader2 } from "lucide-react"; // For loading spinner
-import { z } from "zod"; // For validation
-import CompanyCard from "@/components/CompanyCard"; // Assumes components/CompanyCard.tsx exists
-import { getDistance } from "geolib"; // For distance sorting
+import { createClient } from "@/lib/supabaseClient";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
+import { getDistance } from "geolib";
+import CompanyRow from "@/components/directory/CompanyRow";
+import FilterSidebar, { MobileFilterSheet, type FilterState, defaultFilters } from "@/components/directory/FilterSidebar";
+import ActiveFilters from "@/components/directory/ActiveFilters";
 
 interface Company {
   id: string;
@@ -36,16 +35,9 @@ interface Company {
   [key: string]: unknown;
 }
 
-// Zod schema for search query
-const searchSchema = z.object({
-  service: z.string().optional(),
-  region: z.string().optional(),
-  userLocation: z.object({ lat: z.number(), long: z.number() }).optional(), // From browser geolocation
-});
-
-// Fetch available services/regions from DB (static for now; future dynamic)
-const availableServices = ["Plumbing", "Electrical", "Carpentry", "Painting", "Landscaping", "Roofing"];
-const availableRegions = ["Northern Beaches, NSW", "Brisbane, QLD"]; // From regions table seed
+interface ReviewMap {
+  [companyId: string]: { average: number; count: number };
+}
 
 export default function DirectoryPage() {
   return (
@@ -58,89 +50,202 @@ export default function DirectoryPage() {
 function DirectoryContent() {
   const searchParams = useSearchParams();
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
-  const [service, setService] = useState<string>(searchParams.get("service") || "");
-  const [region, setRegion] = useState<string>(searchParams.get("region") || "");
-  const [userLocation, setUserLocation] = useState<{ lat: number; long: number } | null>(null);
+  const [reviewMap, setReviewMap] = useState<ReviewMap>({});
   const [loading, setLoading] = useState(true);
-  const [searching, setSearching] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; long: number } | null>(null);
   const { toast } = useToast();
   const supabase = createClient();
+  const leadTracked = useRef(false);
 
+  // Initialize filters from URL params
+  const [filters, setFilters] = useState<FilterState>(() => ({
+    ...defaultFilters,
+    service: searchParams.get("service") || "",
+    region: searchParams.get("region") || "",
+  }));
+
+  // Fetch companies + reviews on mount
   useEffect(() => {
-    const fetchCompanies = async () => {
-      const { data, error } = await supabase
-        .from("companies")
-        .select("*")
-        .eq("verified", true)
-        .order("subscription_tier", { ascending: false }); // Priority by tier (enterprise > pro > basic)
+    const fetchData = async () => {
+      const [companiesRes, reviewsRes] = await Promise.all([
+        supabase
+          .from("companies")
+          .select("*")
+          .eq("verified", true)
+          .order("subscription_tier", { ascending: false }),
+        supabase
+          .from("reviews")
+          .select("company_id, rating"),
+      ]);
 
-      if (error) {
+      if (companiesRes.error) {
         toast({ variant: "destructive", title: "Error", description: "Failed to load directory." });
       } else {
-        const allCompanies = (data || []) as Company[];
-        setCompanies(allCompanies);
-
-        // Auto-filter if URL params present
-        const urlService = searchParams.get("service");
-        const urlRegion = searchParams.get("region");
-        if (urlService || urlRegion) {
-          let results = allCompanies;
-          if (urlService) {
-            results = results.filter((comp) => comp.services.includes(urlService));
-          }
-          if (urlRegion) {
-            results = results.filter((comp) => comp.location.region === urlRegion);
-          }
-          setFilteredCompanies(results);
-        } else {
-          setFilteredCompanies(allCompanies);
-        }
+        setCompanies((companiesRes.data || []) as Company[]);
       }
+
+      // Build review map
+      if (reviewsRes.data) {
+        const map: ReviewMap = {};
+        for (const r of reviewsRes.data as { company_id: string; rating: number }[]) {
+          if (!map[r.company_id]) {
+            map[r.company_id] = { average: 0, count: 0 };
+          }
+          map[r.company_id].count += 1;
+          map[r.company_id].average += r.rating;
+        }
+        for (const id of Object.keys(map)) {
+          map[id].average = Math.round((map[id].average / map[id].count) * 10) / 10;
+        }
+        setReviewMap(map);
+      }
+
       setLoading(false);
     };
-    fetchCompanies();
-  }, [searchParams]);
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const handleSearch = async () => {
-    setSearching(true);
-    try {
-      searchSchema.parse({ service, region, userLocation });
-
-      let results = companies;
-      if (service) {
-        results = results.filter((comp) => comp.services.includes(service));
-      }
-      if (region) {
-        results = results.filter((comp) => comp.location.region === region);
-      }
-
-      // Sort by distance if userLocation available
-      if (userLocation) {
-        results = results.sort((a, b) => {
-          const distA = getDistance({ latitude: userLocation.lat, longitude: userLocation.long }, { latitude: a.location.lat, longitude: a.location.long });
-          const distB = getDistance({ latitude: userLocation.lat, longitude: userLocation.long }, { latitude: b.location.lat, longitude: b.location.long });
-          return distA - distB;
-        });
-      }
-
-      setFilteredCompanies(results);
-
-      // Log lead (future: tie to user if authenticated)
-      if (results.length > 0) {
-        await supabase.from("leads").insert({
-          query: `${service || "Any"} in ${region || "Any"}`,
-          user_location: userLocation ? { lat: userLocation.lat, long: userLocation.long } : null,
-        });
-      }
-
-      toast({ title: "Success", description: `${results.length} results found.` });
-    } catch {
-      toast({ variant: "destructive", title: "Error", description: "Invalid search parameters." });
-    } finally {
-      setSearching(false);
+  // Try to get user location
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setUserLocation({ lat: pos.coords.latitude, long: pos.coords.longitude }),
+        () => {} // silently fail
+      );
     }
+  }, []);
+
+  // Extract dynamic filter options from company data
+  const availableServices = useMemo(() => {
+    const set = new Set<string>();
+    companies.forEach((c) => c.services.forEach((s) => set.add(s)));
+    return Array.from(set).sort();
+  }, [companies]);
+
+  const availableRegions = useMemo(() => {
+    const set = new Set<string>();
+    companies.forEach((c) => {
+      if (c.location?.region) set.add(c.location.region);
+    });
+    return Array.from(set).sort();
+  }, [companies]);
+
+  const availablePaymentMethods = useMemo(() => {
+    const set = new Set<string>();
+    companies.forEach((c) => c.payment_methods?.forEach((m) => set.add(m)));
+    return Array.from(set).sort();
+  }, [companies]);
+
+  // Helper: get distance in km
+  const getDistanceKm = (company: Company): number | null => {
+    if (!userLocation || !company.location?.lat || !company.location?.long) return null;
+    return Math.round(
+      getDistance(
+        { latitude: userLocation.lat, longitude: userLocation.long },
+        { latitude: company.location.lat, longitude: company.location.long }
+      ) / 1000
+    );
   };
+
+  // Apply all filters + sorting
+  const filteredCompanies = useMemo(() => {
+    let results = [...companies];
+
+    // Service filter
+    if (filters.service) {
+      results = results.filter((c) => c.services.includes(filters.service));
+    }
+
+    // Region filter
+    if (filters.region) {
+      results = results.filter((c) => c.location?.region === filters.region);
+    }
+
+    // Min rating
+    if (filters.minRating > 0) {
+      results = results.filter((c) => {
+        const review = reviewMap[c.id];
+        return review && review.average >= filters.minRating;
+      });
+    }
+
+    // Min years
+    if (filters.minYears > 0) {
+      results = results.filter((c) => (c.years_in_business || 0) >= filters.minYears);
+    }
+
+    // Min employees
+    if (filters.minEmployees > 0) {
+      results = results.filter((c) => (c.number_of_employees || 0) >= filters.minEmployees);
+    }
+
+    // Tier filter
+    if (filters.tiers.length > 0) {
+      results = results.filter((c) => filters.tiers.includes((c.subscription_tier || "basic").toLowerCase()));
+    }
+
+    // Payment methods
+    if (filters.paymentMethods.length > 0) {
+      results = results.filter((c) =>
+        filters.paymentMethods.some((m) => c.payment_methods?.includes(m))
+      );
+    }
+
+    // Boolean filters
+    if (filters.hasInsurance) results = results.filter((c) => !!c.insurance_details);
+    if (filters.hasCertifications) results = results.filter((c) => c.certifications?.length > 0);
+    if (filters.hasWebsite) results = results.filter((c) => !!c.website);
+    if (filters.hasOperatingHours) results = results.filter((c) => !!c.operating_hours);
+    if (filters.hasReferences) results = results.filter((c) => c.references?.length > 0);
+    if (filters.hasLicenses) results = results.filter((c) => c.licenses?.length > 0);
+
+    // Max distance
+    if (filters.maxDistance > 0 && userLocation) {
+      results = results.filter((c) => {
+        const dist = getDistanceKm(c);
+        return dist !== null && dist <= filters.maxDistance;
+      });
+    }
+
+    // Sorting
+    switch (filters.sortBy) {
+      case "rating":
+        results.sort((a, b) => (reviewMap[b.id]?.average || 0) - (reviewMap[a.id]?.average || 0));
+        break;
+      case "reviews":
+        results.sort((a, b) => (reviewMap[b.id]?.count || 0) - (reviewMap[a.id]?.count || 0));
+        break;
+      case "years":
+        results.sort((a, b) => (b.years_in_business || 0) - (a.years_in_business || 0));
+        break;
+      case "distance":
+        if (userLocation) {
+          results.sort((a, b) => (getDistanceKm(a) ?? Infinity) - (getDistanceKm(b) ?? Infinity));
+        }
+        break;
+      // "relevance" keeps the default tier-based order from Supabase
+    }
+
+    return results;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companies, filters, reviewMap, userLocation]);
+
+  // Lead tracking on initial load with URL params
+  useEffect(() => {
+    if (leadTracked.current || loading) return;
+    const urlService = searchParams.get("service");
+    const urlRegion = searchParams.get("region");
+    if (urlService || urlRegion) {
+      leadTracked.current = true;
+      supabase.from("leads").insert({
+        query: `${urlService || "Any"} in ${urlRegion || "Any"}`,
+        user_location: userLocation ? { lat: userLocation.lat, long: userLocation.long } : null,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   if (loading) {
     return (
@@ -151,46 +256,64 @@ function DirectoryContent() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
-      <h1 className="text-3xl font-bold text-foreground dark:text-white">Tradies Directory</h1>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Select value={service} onValueChange={setService}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select Service" />
-          </SelectTrigger>
-          <SelectContent>
-            {availableServices.map((svc) => (
-              <SelectItem key={svc} value={svc}>
-                {svc}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={region} onValueChange={setRegion}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select Region" />
-          </SelectTrigger>
-          <SelectContent>
-            {availableRegions.map((reg) => (
-              <SelectItem key={reg} value={reg}>
-                {reg}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button onClick={handleSearch} disabled={searching}>
-          {searching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          {searching ? "Searching..." : "Search"}
-        </Button>
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-foreground dark:text-white">Tradies Directory</h1>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        {filteredCompanies.length === 0 ? (
-          <p className="col-span-full text-center text-muted-foreground dark:text-gray-400">No results found. Try different filters.</p>
-        ) : (
-          filteredCompanies.map((company) => (
-            <CompanyCard key={company.id} company={company} />
-          ))
-        )}
+
+      <div className="flex gap-8">
+        {/* Sidebar */}
+        <FilterSidebar
+          filters={filters}
+          onChange={setFilters}
+          availableServices={availableServices}
+          availableRegions={availableRegions}
+          availablePaymentMethods={availablePaymentMethods}
+          hasLocation={!!userLocation}
+        />
+
+        {/* Main content */}
+        <div className="flex-1 min-w-0">
+          {/* Active filters + count */}
+          <div className="space-y-3 mb-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="lg:hidden">
+                <MobileFilterSheet
+                  filters={filters}
+                  onChange={setFilters}
+                  availableServices={availableServices}
+                  availableRegions={availableRegions}
+                  availablePaymentMethods={availablePaymentMethods}
+                  hasLocation={!!userLocation}
+                />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {filteredCompanies.length} {filteredCompanies.length === 1 ? "result" : "results"}
+              </p>
+            </div>
+
+            <ActiveFilters filters={filters} onChange={setFilters} />
+          </div>
+
+          {/* Company rows */}
+          <div className="rounded-lg border border-border bg-card dark:bg-gray-800/50 overflow-hidden">
+            {filteredCompanies.length === 0 ? (
+              <div className="px-4 py-12 text-center text-muted-foreground dark:text-gray-400">
+                No results found. Try adjusting your filters.
+              </div>
+            ) : (
+              filteredCompanies.map((company) => (
+                <CompanyRow
+                  key={company.id}
+                  company={company}
+                  reviewData={reviewMap[company.id]}
+                  isExpanded={expandedId === company.id}
+                  onToggle={() => setExpandedId(expandedId === company.id ? null : company.id)}
+                />
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
