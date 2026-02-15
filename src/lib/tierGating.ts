@@ -28,7 +28,7 @@ const FEATURE_TIER_MAP: Record<FeatureKey, SubscriptionTier> = {
   profile_preview: "basic",
   reviews: "basic",
   quotes: "basic",
-  post_jobs: "basic",
+  post_jobs: "pro",
   ad_booking: "pro",
   fb_post: "pro",
   analytics: "enterprise",

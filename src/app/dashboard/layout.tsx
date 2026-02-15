@@ -64,7 +64,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     { href: "/dashboard/profile", label: "Edit Profile", icon: User, locked: false },
     { href: "/dashboard/received-reviews", label: "Reviews", icon: Star, locked: false },
     { href: "/dashboard/received-quotes", label: "Quotes", icon: MessageSquare, locked: false },
-    { href: "/dashboard/post-job", label: "Post Job", icon: Briefcase, locked: false },
+    { href: "/dashboard/post-job", label: "Post Job", icon: Briefcase, locked: tierLevel < 1 },
     { href: "/dashboard/ad-booking", label: "Ad Spots", icon: Megaphone, locked: tierLevel < 1 },
     { href: "/dashboard/fb-post", label: "FB Post", icon: Share2, locked: tierLevel < 1 },
     { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3, locked: tierLevel < 2 },
