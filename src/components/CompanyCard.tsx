@@ -29,15 +29,16 @@ interface CompanyCardProps {
     references: string[]; // Array
   };
   userLocation?: { lat: number; long: number }; // Optional for distance
+  embedded?: boolean;
 }
 
-export default function CompanyCard({ company, userLocation }: CompanyCardProps) {
+export default function CompanyCard({ company, userLocation, embedded }: CompanyCardProps) {
   const distance = userLocation
     ? Math.round(getDistance({ latitude: userLocation.lat, longitude: userLocation.long }, { latitude: company.location.lat, longitude: company.location.long }) / 1000) // km
     : null;
 
   return (
-    <Card className="flex flex-col h-full overflow-hidden rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 bg-card dark:bg-gray-800 border border-border dark:border-gray-700">
+    <Card className={`flex flex-col h-full overflow-hidden rounded-lg ${embedded ? "shadow-none border-0 bg-transparent dark:bg-transparent" : "shadow-md hover:shadow-lg transition-shadow duration-300 bg-card dark:bg-gray-800 border border-border dark:border-gray-700"}`}>
       <CardHeader className="space-y-1">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-xl font-bold text-foreground dark:text-white">{company.name}</CardTitle>
