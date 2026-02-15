@@ -91,15 +91,15 @@ export default function NoticeBoard() {
 
       {/* Horizontal category tabs */}
       {availableJobTypes.length > 0 && (
-        <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide justify-center">
           {["All", ...availableJobTypes].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+              className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors border ${
                 activeTab === tab
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background text-foreground border-border hover:bg-muted dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-700"
               }`}
             >
               {tab}
