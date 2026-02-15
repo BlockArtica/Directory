@@ -61,15 +61,19 @@ function CallbackHandler() {
 
           if (pendingUserType === "business") {
             // Create company stub for business users
-            await supabase.from("companies").insert({
+            const { error: companyError } = await supabase.from("companies").insert({
               user_id: session.user.id,
               name: "",
-              abn: "",
+              abn: null,
               location: { address: "", lat: 0, long: 0, region: "" },
               services: [],
               verified: false,
             });
-            toast({ title: "Welcome!", description: "Complete your business profile." });
+            if (companyError) {
+              toast({ variant: "destructive", title: "Error", description: "Failed to create company profile." });
+            } else {
+              toast({ title: "Welcome!", description: "Complete your business profile." });
+            }
             router.push("/dashboard/profile");
           } else {
             toast({ title: "Welcome!", description: "Start exploring trusted tradies." });
